@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Commons.Music.Midi;
 using Obsidian.Elements;
 using Obsidian;
+using System;
 
 namespace Components.Devices.MIDI;
 
@@ -56,7 +57,7 @@ public class MIDI_InputDevice : Component
 
     public event MIDI_SystemRealtimeEventHandler Reset;
 
-    private const bool DEBUG = false;
+    private const bool DEBUG = true;
 
     private struct TimestampedMidiEvent
     {
@@ -325,6 +326,8 @@ public class MIDI_InputDevice : Component
         if (DEBUG) UniLog.Log($"*** New midi message");
         if (DEBUG) UniLog.Log($"* Received {args.Length} bytes");
         if (DEBUG) UniLog.Log($"* Timestamp: {args.Timestamp}");
+        var msNow = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+        if (DEBUG) UniLog.Log($"* DateTime ms: {msNow}");
 
         var events = MidiEvent.Convert(args.Data, args.Start, args.Length);
 
@@ -412,14 +415,14 @@ public class MIDI_InputDevice : Component
             
             // buffer CC messages because consecutive ones may need to be combined
             // also buffer Program messages
-            _eventBuffer.Add(new TimestampedMidiEvent(e, args.Timestamp));
+            _eventBuffer.Add(new TimestampedMidiEvent(e, msNow));
             _bufferedMessagesToHandle += 1;
         }
 
-        if (events.Count() > 0 && args.Timestamp - _lastMessageBufferStartTime > MESSAGE_BUFFER_TIME_MILLISECONDS)
+        if (events.Count() > 0 && msNow - _lastMessageBufferStartTime > MESSAGE_BUFFER_TIME_MILLISECONDS)
         {
-            _lastMessageBufferStartTime = args.Timestamp;
-            if (DEBUG) UniLog.Log("* New message batch created: " + args.Timestamp.ToString());
+            _lastMessageBufferStartTime = msNow;
+            if (DEBUG) UniLog.Log("* New message batch created: " + msNow.ToString());
             await Task.Delay((int)MESSAGE_BUFFER_TIME_MILLISECONDS);
             FlushMessageBuffer();
         }
