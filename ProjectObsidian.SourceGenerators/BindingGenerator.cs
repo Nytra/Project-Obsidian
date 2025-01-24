@@ -235,7 +235,8 @@ public partial class {_fullName} : global::{_baseTypeNamespace}{_baseType} {_con
             TypedFieldDetection(type, name, "GlobalRef", "global::FrooxEngine.SyncRef<global::FrooxEngine.ProtoFlux.IGlobalValueProxy<{1}>>", _globalRefCount);
 
             //operations
-            UntypedFieldDetection(type, name, "Operation", "global::FrooxEngine.ProtoFlux.SyncNodeOperation", _operationCount);
+            if (type == "Operation")
+                UntypedFieldDetection(type, name, "Operation", "global::FrooxEngine.ProtoFlux.SyncNodeOperation", _operationCount);
             
             //lists
             
@@ -247,10 +248,12 @@ public partial class {_fullName} : global::{_baseTypeNamespace}{_baseType} {_con
             
             //impulse lists
             UntypedFieldDetection(type, name, "ContinuationList", "global::FrooxEngine.SyncRefList<global::FrooxEngine.ProtoFlux.INodeOperation>", _impulseListCount);
-            
+
             //operation lists
+            UntypedFieldDetection(type, name, "AsyncOperationList", "global::FrooxEngine.SyncList<global::FrooxEngine.ProtoFlux.AsyncNodeOperation>", _operationListCount);
+
             UntypedFieldDetection(type, name, "SyncOperationList", "global::FrooxEngine.SyncList<global::FrooxEngine.ProtoFlux.SyncNodeOperation>", _operationListCount);
-            
+
             base.VisitFieldDeclaration(node);
         }
         public override void VisitPropertyDeclaration(PropertyDeclarationSyntax node)
