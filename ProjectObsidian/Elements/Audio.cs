@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Elements.Assets;
 using FrooxEngine;
+using Elements.Core;
 
 namespace Obsidian.Elements;
 
@@ -165,21 +166,29 @@ public interface IFirFilter
 
 public class FirFilter<S> : IFirFilter where S : unmanaged, IAudioSample<S>
 {
-    public float[] coefficients;
-    public readonly S[] delayLine;
-    public int delayLineIndex;
+    private float[] coefficients;
+    private float[] targetCoefficients;
+    private S[] delayLine;
+    private int delayLineIndex;
+    private float smoothingFactor = 0.01f; // Controls the speed of coefficient transition
+    private bool isTransitioning = false;
 
     /// <summary>
     /// Creates a new FIR filter with the specified coefficients
     /// </summary>
     /// <param name="filterCoefficients">The filter coefficients that define the filter's behavior</param>
-    public FirFilter(float[] filterCoefficients)
+    /// <param name="smoothingFactor">Optional: Controls how quickly coefficient changes are applied (0.0-1.0)</param>
+    public FirFilter(float[] filterCoefficients, float smoothingFactor = 0.01f)
     {
         if (filterCoefficients == null || filterCoefficients.Length == 0)
             throw new ArgumentException("Filter coefficients cannot be null or empty");
 
         // Store the coefficients
-        coefficients = (float[])filterCoefficients.Clone();
+        this.coefficients = (float[])filterCoefficients.Clone();
+        this.targetCoefficients = (float[])filterCoefficients.Clone();
+
+        // Set smoothing factor with bounds checking
+        this.smoothingFactor = MathX.Clamp(smoothingFactor, 0.001f, 1.0f);
 
         // Create the delay line (buffer for previous samples)
         delayLine = new S[coefficients.Length];
@@ -187,12 +196,15 @@ public class FirFilter<S> : IFirFilter where S : unmanaged, IAudioSample<S>
     }
 
     /// <summary>
-    /// Process a single sample through the FIR filter
+    /// Process a single sample through the FIR filter with coefficient interpolation
     /// </summary>
     /// <param name="input">The input sample</param>
     /// <returns>The filtered output sample</returns>
     public S ProcessSample(S input)
     {
+        // Update coefficients if they're transitioning
+        UpdateCoefficients();
+
         // Store the current input in the delay line
         delayLine[delayLineIndex] = input;
 
@@ -204,7 +216,7 @@ public class FirFilter<S> : IFirFilter where S : unmanaged, IAudioSample<S>
         {
             for (int channel = 0; channel < delayLine[index].ChannelCount; channel++)
             {
-                output = output.SetChannel(channel, output[channel] + (coefficients[i] * delayLine[index][channel]));
+                output = output.SetChannel(channel, MathX.Clamp(output[channel] + (coefficients[i] * delayLine[index][channel]), -1f, 1f));
             }
 
             // Move to the previous sample in the delay line (circular buffer)
@@ -214,9 +226,7 @@ public class FirFilter<S> : IFirFilter where S : unmanaged, IAudioSample<S>
         }
 
         // Update the delay line index for the next sample
-        delayLineIndex++;
-        if (delayLineIndex >= coefficients.Length)
-            delayLineIndex = 0;
+        delayLineIndex = (delayLineIndex + 1) % coefficients.Length;
 
         return output;
     }
@@ -224,8 +234,7 @@ public class FirFilter<S> : IFirFilter where S : unmanaged, IAudioSample<S>
     /// <summary>
     /// Process an entire buffer of samples through the FIR filter
     /// </summary>
-    /// <param name="inputBuffer">Array of input samples</param>
-    /// <returns>Array of filtered output samples</returns>
+    /// <param name="inputBuffer">Span of input samples</param>
     public void ProcessBuffer(Span<S> inputBuffer)
     {
         if (inputBuffer == null)
@@ -246,9 +255,91 @@ public class FirFilter<S> : IFirFilter where S : unmanaged, IAudioSample<S>
         delayLineIndex = 0;
     }
 
-    public void SetCoefficients(float[] _coefficients)
+    /// <summary>
+    /// Set new target coefficients with smooth transition
+    /// </summary>
+    /// <param name="newCoefficients">The new filter coefficients</param>
+    public void SetCoefficients(float[] newCoefficients)
     {
-        coefficients = (float[])_coefficients.Clone();
+        if (newCoefficients == null || newCoefficients.Length == 0)
+            throw new ArgumentException("Filter coefficients cannot be null or empty");
+
+        if (newCoefficients.Length != coefficients.Length)
+        {
+            // Handle different coefficient array sizes by creating a new delay line
+            S[] newDelayLine = new S[newCoefficients.Length];
+
+            // Copy old samples where possible
+            int copyLength = Math.Min(delayLine.Length, newCoefficients.Length);
+            for (int i = 0; i < copyLength; i++)
+            {
+                int srcIndex = (delayLineIndex - i + delayLine.Length) % delayLine.Length;
+                int destIndex = i;
+                newDelayLine[destIndex] = delayLine[srcIndex];
+            }
+
+            // Update delay line and index
+            Array.Clear(delayLine, 0, delayLine.Length);
+        }
+
+        targetCoefficients = (float[])newCoefficients.Clone();
+        isTransitioning = true;
+    }
+
+    /// <summary>
+    /// Set new coefficients immediately (may cause clicking)
+    /// </summary>
+    /// <param name="newCoefficients">The new filter coefficients</param>
+    public void SetCoefficientsImmediate(float[] newCoefficients)
+    {
+        if (newCoefficients == null || newCoefficients.Length == 0)
+            throw new ArgumentException("Filter coefficients cannot be null or empty");
+
+        if (newCoefficients.Length != coefficients.Length)
+        {
+            // Create new delay line and reset the state
+            delayLine = new S[newCoefficients.Length];
+            delayLineIndex = 0;
+        }
+
+        coefficients = (float[])newCoefficients.Clone();
+        targetCoefficients = (float[])newCoefficients.Clone();
+        isTransitioning = false;
+    }
+
+    /// <summary>
+    /// Set the smoothing factor for coefficient transitions
+    /// </summary>
+    /// <param name="factor">Value between 0.001 and 1.0</param>
+    public void SetSmoothingFactor(float factor)
+    {
+        smoothingFactor = MathX.Clamp(factor, 0.001f, 1.0f);
+    }
+
+    /// <summary>
+    /// Update coefficients gradually to reach target values
+    /// </summary>
+    private void UpdateCoefficients()
+    {
+        if (!isTransitioning)
+            return;
+
+        bool stillTransitioning = false;
+
+        for (int i = 0; i < coefficients.Length; i++)
+        {
+            if (Math.Abs(coefficients[i] - targetCoefficients[i]) > 0.0001f)
+            {
+                coefficients[i] += (targetCoefficients[i] - coefficients[i]) * smoothingFactor;
+                stillTransitioning = true;
+            }
+            else
+            {
+                coefficients[i] = targetCoefficients[i];
+            }
+        }
+
+        isTransitioning = stillTransitioning;
     }
 }
 
