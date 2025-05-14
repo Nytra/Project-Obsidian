@@ -7,11 +7,11 @@ namespace Obsidian;
 
 internal class ComponentsDataFeedData
 {
-    private List<ComponentData> _data = new List<ComponentData>();
+    private List<TypeData> _data = new List<TypeData>();
 
-    private Dictionary<string, ComponentData> _dataByUniqueId = new Dictionary<string, ComponentData>();
+    private Dictionary<string, TypeData> _dataByUniqueId = new Dictionary<string, TypeData>();
 
-    public IEnumerable<ComponentData> ComponentData => _data;
+    public IEnumerable<TypeData> ComponentData => _data;
 
     public void Clear()
     {
@@ -24,48 +24,48 @@ internal class ComponentsDataFeedData
 		return type.GetHashCode().ToString();
 	}
 
-	private ComponentData RegisterComponentType(Type type, out bool createdEntry)
+	private TypeData RegisterComponentType(Type type, out bool createdEntry)
 	{
-		ComponentData componentData = EnsureEntry(type, out createdEntry);
+		TypeData data = EnsureEntry(type, out createdEntry);
 
 		if (!createdEntry)
 		{
 			throw new InvalidOperationException("Component with this Type has already been added! Type: " + type.FullName);
 		}
 
-		return componentData;
+		return data;
 	}
 
-	public ComponentDataResult AddComponentType(Type type)
+	public TypeDataResult AddComponentType(Type type)
 	{
 		bool createdEntry;
-		return new ComponentDataResult(RegisterComponentType(type, out createdEntry), (!createdEntry) ? DataFeedItemChange.Updated : DataFeedItemChange.Added);
+		return new TypeDataResult(RegisterComponentType(type, out createdEntry), (!createdEntry) ? DataFeedItemChange.Updated : DataFeedItemChange.Added);
 	}
 
-	public ComponentDataResult RemoveComponentType(Type type)
+	public TypeDataResult RemoveComponentType(Type type)
 	{
 		if (!_dataByUniqueId.TryGetValue(GetUniqueId(type), out var value))
 		{
-			return new ComponentDataResult(null, DataFeedItemChange.Unchanged);
+			return new TypeDataResult(null, DataFeedItemChange.Unchanged);
 		}
 		RemoveEntry(value);
-		return new ComponentDataResult(value, DataFeedItemChange.Removed);
+		return new TypeDataResult(value, DataFeedItemChange.Removed);
 	}
 
-	private void RemoveEntry(ComponentData data)
+	private void RemoveEntry(TypeData data)
     {
         _data.Remove(data);
         _dataByUniqueId.Remove(data.uniqueId);
     }
 
-	private ComponentData EnsureEntry(Type type, out bool created)
+	private TypeData EnsureEntry(Type type, out bool created)
 	{
 		if (_dataByUniqueId.TryGetValue(GetUniqueId(type), out var value))
 		{
 			created = false;
 			return value;
 		}
-		value = new ComponentData(type);
+		value = new TypeData(type);
 		value.uniqueId = GetUniqueId(type);
 		_data.Add(value);
 		_dataByUniqueId.Add(GetUniqueId(type), value);

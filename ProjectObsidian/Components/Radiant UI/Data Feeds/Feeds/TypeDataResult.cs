@@ -2,13 +2,13 @@
 
 namespace Obsidian;
 
-public readonly struct ComponentDataResult
+public readonly struct TypeDataResult
 {
-    public readonly ComponentData data;
+    public readonly TypeData data;
 
     public readonly DataFeedItemChange change;
 
-    public ComponentDataResult(ComponentData data, DataFeedItemChange change)
+    public TypeDataResult(TypeData data, DataFeedItemChange change)
     {
         this.data = data;
         this.change = change;

@@ -5,7 +5,7 @@ using FrooxEngine;
 
 namespace Obsidian;
 
-public class ComponentData
+public class TypeData
 {
     private Type _componentType;
 
@@ -27,7 +27,7 @@ public class ComponentData
 
     public Type GenericTypeDefinition => IsGenericType ? ComponentType.GetGenericTypeDefinition() : null;
 
-    public ComponentData(Type type)
+    public TypeData(Type type)
     {
         this._componentType = type;
     }

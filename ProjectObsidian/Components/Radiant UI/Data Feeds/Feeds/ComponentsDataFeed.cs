@@ -7,13 +7,7 @@ using SkyFrost.Base;
 
 namespace Obsidian;
 
-// This feed has two functions. 
-
-// If TargetSlot has a reference, it returns the components on that slot, optionally also returning components on children slots (IncludeChildrenSlots bool)
-// It also returns the sync members (fields, lists etc) as DataFeedEntity<ISyncMember>
-
-// it returns the components from the component library, which includes the categories (DataFeedCategoryItem)
-// When enumerating the component library, the Component reference on the ComponentDataItemInterface will be null and there will be no members
+// This feed returns the components from the component library, which includes the categories (DataFeedCategoryItem)
 
 [Category(new string[] { "Obsidian/Radiant UI/Data Feeds/Feeds" })]
 public class ComponentsDataFeed : Component, IDataFeedComponent, IDataFeed, IWorldElement
@@ -159,7 +153,7 @@ public class ComponentsDataFeed : Component, IDataFeedComponent, IDataFeed, IWor
         List<string> requiredTerms = Pool.BorrowList<string>();
         List<string> excludedTerms = Pool.BorrowList<string>();
         SearchQueryParser.Parse(searchPhrase, optionalTerms, requiredTerms, excludedTerms);
-        foreach (ComponentData componentData in componentDataFeedData.ComponentData)
+        foreach (TypeData componentData in componentDataFeedData.ComponentData)
         {
             if (componentData.MatchesSearchParameters(optionalTerms, requiredTerms, excludedTerms))
             {
