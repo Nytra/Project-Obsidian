@@ -19,43 +19,10 @@ internal class ComponentsDataFeedData
         _dataByUniqueId.Clear();
     }
 
-	private string GetUniqueId(Component c)
-	{
-		return c.ReferenceID.ToString();
-	}
-
 	private string GetUniqueId(Type type)
 	{
 		return type.GetHashCode().ToString();
 	}
-
-	private ComponentData RegisterComponent(Component c, out bool createdEntry)
-    {
-        ComponentData componentData = EnsureEntry(c, out createdEntry);
-
-        if (!createdEntry)
-        {
-            throw new InvalidOperationException("Component with this ReferenceID has already been added! RefId: " + GetUniqueId(c));
-        }
-
-        return componentData;
-    }
-
-    public ComponentDataResult AddComponent(Component c)
-    {
-        bool createdEntry;
-        return new ComponentDataResult(RegisterComponent(c, out createdEntry), (!createdEntry) ? DataFeedItemChange.Updated : DataFeedItemChange.Added);
-    }
-
-    public ComponentDataResult RemoveComponent(Component c)
-    {
-        if (!_dataByUniqueId.TryGetValue(GetUniqueId(c), out var value))
-        {
-            return new ComponentDataResult(null, DataFeedItemChange.Unchanged);
-        }
-        RemoveEntry(value);
-        return new ComponentDataResult(value, DataFeedItemChange.Removed);
-    }
 
 	private ComponentData RegisterComponentType(Type type, out bool createdEntry)
 	{
@@ -89,21 +56,6 @@ internal class ComponentsDataFeedData
     {
         _data.Remove(data);
         _dataByUniqueId.Remove(data.uniqueId);
-    }
-
-    private ComponentData EnsureEntry(Component c, out bool created)
-    {
-        if (_dataByUniqueId.TryGetValue(GetUniqueId(c), out var value))
-        {
-            created = false;
-            return value;
-        }
-        value = new ComponentData(c);
-		value.uniqueId = GetUniqueId(c);
-        _data.Add(value);
-        _dataByUniqueId.Add(GetUniqueId(c), value);
-        created = true;
-        return value;
     }
 
 	private ComponentData EnsureEntry(Type type, out bool created)

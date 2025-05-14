@@ -7,10 +7,6 @@ namespace Obsidian;
 
 public class ComponentData
 {
-    public SlimList<ISyncMember> members;
-
-    public Component component;
-
     private Type _componentType;
 
     public bool Submitted { get; private set; }
@@ -19,25 +15,17 @@ public class ComponentData
     {
         get
         {
-            return component?.Name ?? _componentType.Name;
+            return _componentType.Name;
         }
     }
 
     public string uniqueId;
 
-    public int MemberCount => members.Count;
-
-    public Type ComponentType => component?.GetType() ?? _componentType;
+    public Type ComponentType => _componentType;
 
     public bool IsGenericType => ComponentType.IsGenericType;
 
     public Type GenericTypeDefinition => IsGenericType ? ComponentType.GetGenericTypeDefinition() : null;
-
-    public ComponentData(Component component)
-    {
-        this.component = component;
-        _componentType = component.GetType();
-    }
 
     public ComponentData(Type type)
     {
@@ -60,11 +48,6 @@ public class ComponentData
             throw new InvalidOperationException("This item isn't marked as submitted");
         }
         Submitted = false;
-    }
-
-    public void AddMember(ISyncMember member)
-    {
-        members.Add(member);
     }
 
     public bool MatchesSearchParameters(List<string> optionalTerms, List<string> requiredTerms, List<string> excludedTerms)
@@ -121,6 +104,6 @@ public class ComponentData
 
     public override string ToString()
     {
-        return $"Name: {MainName}, UniqueID: {uniqueId}, MemberCount: {MemberCount}";
+        return $"Name: {MainName}, UniqueID: {uniqueId}";
     }
 }

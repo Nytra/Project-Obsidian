@@ -12,7 +12,7 @@ namespace Obsidian;
 // If TargetSlot has a reference, it returns the components on that slot, optionally also returning components on children slots (IncludeChildrenSlots bool)
 // It also returns the sync members (fields, lists etc) as DataFeedEntity<ISyncMember>
 
-// If TargetSlot is null, it returns the components from the component library, which includes the categories (DataFeedCategoryItem)
+// it returns the components from the component library, which includes the categories (DataFeedCategoryItem)
 // When enumerating the component library, the Component reference on the ComponentDataItemInterface will be null and there will be no members
 
 [Category(new string[] { "Obsidian/Radiant UI/Data Feeds/Feeds" })]
@@ -22,45 +22,11 @@ public class ComponentsDataFeed : Component, IDataFeedComponent, IDataFeed, IWor
 
     public bool SupportsBackgroundQuerying => true;
 
-    public readonly SyncRef<Slot> TargetSlot;
-
-    public readonly Sync<bool> IncludeChildrenSlots;
-
-    private Slot _lastSlot = null;
-
     private static HashSet<Type> _componentTypes = new();
 
     private static bool SearchStringValid(string str)
     {
         return !string.IsNullOrWhiteSpace(str) && str.Length >= 3;
-    }
-
-    private void OnSlotComponentAdded(Component c)
-    {
-        // If local elements are written to synced fields it can cause exceptions and crashes
-        if (c.IsLocalElement) return;
-        foreach (KeyValuePair<SearchPhraseFeedUpdateHandler, ComponentsDataFeedData> updateHandler in _updateHandlers)
-        {
-            var result = updateHandler.Value.AddComponent(c);
-            foreach (ISyncMember syncMember in result.data.component.SyncMembers)
-            {
-                if (FilterMember(syncMember))
-                {
-                    result.data.AddMember(syncMember);
-                }
-            }
-            ProcessUpdate(updateHandler.Key, result.data);
-        }
-    }
-
-    private void OnSlotComponentRemoved(Component c)
-    {
-        foreach (KeyValuePair<SearchPhraseFeedUpdateHandler, ComponentsDataFeedData> updateHandler in _updateHandlers)
-        {
-            var result = updateHandler.Value.RemoveComponent(c);
-            result.data.ClearSubmitted();
-            updateHandler.Key.handler(GenerateComponent(result.data), DataFeedItemChange.Removed);
-        }
     }
 
     private void Update()
@@ -71,127 +37,9 @@ public class ComponentsDataFeed : Component, IDataFeedComponent, IDataFeed, IWor
         }
     }
 
-    private bool FilterMember(ISyncMember member)
-    {
-        if (member.IsLocalElement) return false;
-        return true;
-    }
-
-    private void ProcessUpdate(SearchPhraseFeedUpdateHandler handler, ComponentData data)
-    {
-        bool flag = true;
-        if (!string.IsNullOrEmpty(handler.searchPhrase))
-        {
-            List<string> optionalTerms = Pool.BorrowList<string>();
-            List<string> requiredTerms = Pool.BorrowList<string>();
-            List<string> excludedTerms = Pool.BorrowList<string>();
-            SearchQueryParser.Parse(handler.searchPhrase, optionalTerms, requiredTerms, excludedTerms);
-            if (!data.MatchesSearchParameters(optionalTerms, requiredTerms, excludedTerms))
-            {
-                flag = false;
-            }
-            Pool.Return(ref optionalTerms);
-            Pool.Return(ref requiredTerms);
-            Pool.Return(ref excludedTerms);
-        }
-        if (!flag)
-        {
-            if (data.Submitted)
-            {
-                data.ClearSubmitted();
-                handler.handler(GenerateComponent(data), DataFeedItemChange.Removed);
-            }
-            return;
-        }
-        data.MarkSubmitted();
-        DataFeedItem item = GenerateComponent(data);
-        handler.handler(item, DataFeedItemChange.Added);
-    }
-
-    private void Subscribe(Slot s)
-    {
-        s.ComponentAdded += OnSlotComponentAdded;
-        s.ComponentRemoved += OnSlotComponentRemoved;
-    }
-
-    private void Unsubscribe(Slot s)
-    {
-        s.ComponentAdded -= OnSlotComponentAdded;
-        s.ComponentRemoved -= OnSlotComponentRemoved;
-    }
-
-    protected override void OnStart()
-    {
-        base.OnStart();
-        _lastSlot = TargetSlot.Target;
-        if (_lastSlot != null)
-        {
-            Subscribe(_lastSlot);
-            if (IncludeChildrenSlots)
-            {
-                _lastSlot.ForeachChild(childSlot => Subscribe(childSlot));
-            }
-        }
-    }
-
     protected override void OnChanges()
     {
-        base.OnChanges();
-        if (!TargetSlot.WasChanged && !IncludeChildrenSlots.WasChanged)
-        {
-            return;
-        }
-        if (TargetSlot.WasChanged)
-        {
-            if (_lastSlot != null)
-            {
-                Unsubscribe(_lastSlot);
-                if (IncludeChildrenSlots)
-                {
-                    _lastSlot.ForeachChild(childSlot => Unsubscribe(childSlot));
-                }
-            }
-            if (TargetSlot.Target is Slot slot)
-            {
-                Subscribe(slot);
-                if (IncludeChildrenSlots)
-                {
-                    TargetSlot.Target.ForeachChild(childSlot => Subscribe(childSlot));
-                }
-                _lastSlot = slot;
-            }
-            else
-            {
-                _lastSlot = null;
-            }
-        }
-        if (IncludeChildrenSlots.WasChanged && TargetSlot.Target != null)
-        {
-            if (IncludeChildrenSlots.Value)
-            {
-                TargetSlot.Target.ForeachChild(childSlot => Subscribe(childSlot));
-            }
-            else if (!IncludeChildrenSlots.Value)
-            {
-                TargetSlot.Target.ForeachChild(childSlot => Unsubscribe(childSlot));
-            }
-        }
-        TargetSlot.WasChanged = false;
-        IncludeChildrenSlots.WasChanged = false;
         Update();
-    }
-
-    protected override void OnPrepareDestroy()
-    {
-        base.OnPrepareDestroy();
-        if (TargetSlot.Target != null)
-        {
-            Unsubscribe(TargetSlot.Target);
-            if (IncludeChildrenSlots)
-            {
-                TargetSlot.Target.ForeachChild(childSlot => Unsubscribe(childSlot));
-            }
-        }
     }
 
     private void GetAllTypes(HashSet<Type> allTypes, CategoryNode<Type> categoryNode)
@@ -244,10 +92,6 @@ public class ComponentsDataFeed : Component, IDataFeedComponent, IDataFeed, IWor
 
     public async IAsyncEnumerable<DataFeedItem> Enumerate(IReadOnlyList<string> path, IReadOnlyList<string> groupKeys, string searchPhrase, object viewData)
     {
-        if (TargetSlot.Target != null && (path != null && path.Count > 0))
-        {
-            yield break;
-        }
         if (groupKeys != null && groupKeys.Count > 0)
         {
             yield break;
@@ -257,80 +101,60 @@ public class ComponentsDataFeed : Component, IDataFeedComponent, IDataFeed, IWor
         componentDataFeedData.Clear();
         searchPhrase = searchPhrase?.Trim();
 
-        if (TargetSlot.Target == null)
+        var lib = WorkerInitializer.ComponentLibrary;
+        if (path != null && path.Count > 0)
         {
-            var lib = WorkerInitializer.ComponentLibrary;
-            if (path != null && path.Count > 0)
+            var catNode = lib;
+            foreach (var str in path)
             {
-                var catNode = lib;
-                foreach (var str in path)
+                var subCat = catNode.Subcategories.FirstOrDefault(x => x.Name == str);
+                if (subCat != null)
                 {
-                    var subCat = catNode.Subcategories.FirstOrDefault(x => x.Name == str);
-                    if (subCat != null)
-                    {
-                        catNode = subCat;
-                    }
-                    else
-                    {
-                        yield break;
-                    }
-                }
-                foreach (var subCat2 in catNode.Subcategories)
-                {
-                    yield return GenerateCategory(GetCategoryKey(subCat2), path);
-                }
-                if (SearchStringValid(searchPhrase))
-                {
-                    foreach (var elem in EnumerateAllTypes(catNode))
-                    {
-                        componentDataFeedData.AddComponentType(elem);
-                    }
+                    catNode = subCat;
                 }
                 else
                 {
-                    foreach (var elem in catNode.Elements)
-                    {
-                        componentDataFeedData.AddComponentType(elem);
-                    }
+                    yield break;
+                }
+            }
+            foreach (var subCat2 in catNode.Subcategories)
+            {
+                yield return GenerateCategory(GetCategoryKey(subCat2), path);
+            }
+            if (SearchStringValid(searchPhrase))
+            {
+                foreach (var elem in EnumerateAllTypes(catNode))
+                {
+                    componentDataFeedData.AddComponentType(elem);
                 }
             }
             else
             {
-                if (_componentTypes.Count == 0)
+                foreach (var elem in catNode.Elements)
                 {
-                    GetAllTypes(_componentTypes, lib);
-                }
-                foreach (var subCat in lib.Subcategories)
-                {
-                    yield return GenerateCategory(GetCategoryKey(subCat), path);
-                }
-                if (SearchStringValid(searchPhrase))
-                {
-                    foreach (var elem in _componentTypes)
-                    {
-                        componentDataFeedData.AddComponentType(elem);
-                    }
+                    componentDataFeedData.AddComponentType(elem);
                 }
             }
         }
         else
         {
-            var components = IncludeChildrenSlots ? TargetSlot.Target.GetComponentsInChildren<Component>() : TargetSlot.Target.GetComponents<Component>();
-            foreach (Component allComponent in components)
+            if (_componentTypes.Count == 0)
             {
-                // If local elements are written to synced fields it can cause exceptions and crashes
-                if (allComponent.IsLocalElement) continue;
-                var result = componentDataFeedData.AddComponent(allComponent);
-                foreach (ISyncMember syncMember in allComponent.SyncMembers)
+                GetAllTypes(_componentTypes, lib);
+            }
+            foreach (var subCat in lib.Subcategories)
+            {
+                yield return GenerateCategory(GetCategoryKey(subCat), path);
+            }
+            if (SearchStringValid(searchPhrase))
+            {
+                foreach (var elem in _componentTypes)
                 {
-                    if (FilterMember(syncMember))
-                    {
-                        result.data.AddMember(syncMember);
-                    }
+                    componentDataFeedData.AddComponentType(elem);
                 }
             }
         }
-        
+
         List<string> optionalTerms = Pool.BorrowList<string>();
         List<string> requiredTerms = Pool.BorrowList<string>();
         List<string> excludedTerms = Pool.BorrowList<string>();
@@ -340,24 +164,12 @@ public class ComponentsDataFeed : Component, IDataFeedComponent, IDataFeed, IWor
             if (componentData.MatchesSearchParameters(optionalTerms, requiredTerms, excludedTerms))
             {
                 componentData.MarkSubmitted();
-                if (TargetSlot.Target != null)
-                {
-                    yield return GenerateComponent(componentData);
-                }
-                else
-                {
-                    yield return GenerateType(componentData.ComponentType, componentData.ComponentType.GetHashCode().ToString(), path);
-                }
+                yield return GenerateType(componentData.ComponentType, componentData.ComponentType.GetHashCode().ToString(), path);
             }
         }
         Pool.Return(ref optionalTerms);
         Pool.Return(ref requiredTerms);
         Pool.Return(ref excludedTerms);
-    }
-
-    private ComponentDataFeedItem GenerateComponent(ComponentData data)
-    {
-        return new ComponentDataFeedItem(data);
     }
 
     public void ListenToUpdates(IReadOnlyList<string> path, IReadOnlyList<string> groupKeys, string searchPhrase, DataFeedUpdateHandler handler, object viewData)
