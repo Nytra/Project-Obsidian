@@ -8,6 +8,7 @@ using FrooxEngine;
 
 namespace Obsidian.Components.Tools;
 
+[Category("Obsidian/Utility")]
 public class EditableMeshControlPoint : Component
 {
     public readonly SyncRef<EditableMesh> EditableMesh;
@@ -15,16 +16,14 @@ public class EditableMeshControlPoint : Component
     protected override void OnStart()
     {
         base.OnStart();
-        if (EditableMesh.Target != null)
+        Slot.Position_Field.OnValueChange += (field) =>
         {
-            Slot.Position_Field.OnValueChange += (field) => 
-            { 
-                EditableMesh.Target.MarkChangeDirty();
-            };
-        }
+            EditableMesh.Target?.MarkChangeDirty();
+        };
     }
 }
 
+[Category("Obsidian/Assets/Procedural Meshes")]
 public class EditableMesh : ProceduralMesh
 {
     private const float EPSILON = 0.001f;
@@ -60,14 +59,14 @@ public class EditableMesh : ProceduralMesh
 
         // If this ProceduralMesh was baked, nothing should be referencing it anymore
 
-        UniLog.Log($"AssetReferenceCount: {AssetReferenceCount}");
+        UniLog.Log($"[EditableMesh] OnDestroy. AssetReferenceCount: {AssetReferenceCount}");
 
         foreach (var reference in References)
         {
             UniLog.Log($"Reference: {reference.Parent.Name}");
         }
 
-        if (AssetReferenceCount != 0 && _sourceMesh.Target.FilterWorldElement() != null)
+        if (AssetReferenceCount != 0)
         {
             // EditableMesh wasn't baked.
 
