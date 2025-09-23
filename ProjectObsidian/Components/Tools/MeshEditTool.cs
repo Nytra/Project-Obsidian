@@ -1,41 +1,42 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using BepuPhysics.Constraints;
 using Elements.Assets;
 using Elements.Core;
 using FrooxEngine;
 
 namespace Obsidian.Components.Tools;
 
-//public class EditableMeshPoint : Component
-//{
-//    public readonly Sync<int> MergedVertIndex;
-//    public readonly SyncRef<EditableMesh> EditableMesh;
+public class EditableMeshControlPoint : Component
+{
+    public readonly SyncRef<EditableMesh> EditableMesh;
 
-//    protected override void OnStart()
-//    {
-//        base.OnStart();
-//        if (EditableMesh != null)
-//        {
-//            Slot.Position_Field.OnValueChange += (field) => { };
-//        }
-//    }
-//}
+    protected override void OnStart()
+    {
+        base.OnStart();
+        if (EditableMesh.Target != null)
+        {
+            Slot.Position_Field.OnValueChange += (field) => 
+            { 
+                EditableMesh.Target.MarkChangeDirty();
+            };
+        }
+    }
+}
 
 public class EditableMesh : ProceduralMesh
 {
     private const float EPSILON = 0.001f;
 
-    public readonly SyncRefList<Slot> Points;
-    //public readonly SyncArray<float3> Positions;
     protected readonly AssetRef<Mesh> _sourceMesh;
+    protected readonly SyncRef<Slot> _controlPointsSlot;
+    public readonly SyncRef<MeshCollider> _newCollider;
+    public readonly SyncRef<ICollider> _originalCollider;
+    protected readonly SyncRef<UnlitMaterial> _controlPointMaterial;
 
-    //public readonly Sync<float> ProportionalEditingRadius;
-    //public readonly Sync<float> ProportionalEditingStrength;
-    //private static bool recurseUpdates = true;
-
-    private MeshX localMeshData;
-    private UnlitMaterial mat;
+    private MeshX storedMeshX;
+    private List<MergedVertexData> mergedVertexData;
     
     private class MergedVertexData
     {
@@ -43,45 +44,88 @@ public class EditableMesh : ProceduralMesh
         public HashSet<Vertex> vertices = new();
     }
 
-    protected override void OnPrepareDestroy()
+    protected override void OnDestroy()
     {
-        base.OnPrepareDestroy();
-        foreach (var slot in Points)
+        base.OnDestroy();
+
+        if (_controlPointsSlot.Target.FilterWorldElement() != null)
         {
-            if (slot.FilterWorldElement() != null)
+            _controlPointsSlot.Target.Destroy();
+        }
+
+        if (_controlPointMaterial.Target.FilterWorldElement() != null)
+        {
+            _controlPointMaterial.Target.Destroy();
+        }
+
+        // If this ProceduralMesh was baked, nothing should be referencing it anymore
+
+        UniLog.Log($"AssetReferenceCount: {AssetReferenceCount}");
+
+        foreach (var reference in References)
+        {
+            UniLog.Log($"Reference: {reference.Parent.Name}");
+        }
+
+        if (AssetReferenceCount != 0 && _sourceMesh.Target.FilterWorldElement() != null)
+        {
+            // EditableMesh wasn't baked.
+
+            UniLog.Log($"Wasn't baked.");
+
+            if (_newCollider.Target.FilterWorldElement() != null)
             {
-                slot.Destroy();
+                _newCollider.Target.Destroy();
+            }
+
+            //base.World.ReplaceReferenceTargets(this, _sourceMesh.Target, nullIfIncompatible: false);
+
+            foreach (var reference in References)
+            {
+                reference.Target = _sourceMesh.Target;
+            }
+
+            if (_originalCollider.Target.FilterWorldElement() != null)
+            {
+                _originalCollider.Target.Enabled = true;
+            }
+        }
+        else
+        {
+            // EditableMesh has most likely been baked because nothing references it
+
+            UniLog.Log($"Most likely baked.");
+
+            if (_originalCollider.Target.FilterWorldElement() != null)
+            {
+                _originalCollider.Target.Destroy();
+            }
+
+            if (_sourceMesh.Target.FilterWorldElement() != null)
+            {
+                var assetSlot = World.AssetsSlot.AddSlot("EditableMesh Original Mesh");
+                assetSlot.MoveComponent((Component)_sourceMesh.Target);
             }
         }
     }
 
     protected override void OnStart()
     {
-        //_sourceMesh.OnTargetChange += (syncRef) =>
-        //{
-        //    foreach (var slot in Points)
-        //    {
-        //        if (slot != null)
-        //            slot.Destroy();
-        //    }
-        //    if (_sourceMesh.Asset != null)
-        //    {
-        //        Init();
-        //    }
-        //    //MarkChangeDirty(); // not sure if this is needed?
-        //};
-        
-        if (_sourceMesh.Asset != null)
-        {
-            Init();
-        }
-    }
+        _sourceMesh.OnTargetChange += (syncRef) => 
+        { 
+            // If the mesh changes, the control points should regen
+            // does the collider need to exist???
 
-    protected override void OnAttach()
-    {
-        base.OnAttach();
-        mat = Slot.GetComponentOrAttach<UnlitMaterial>();
-        mat.TintColor.Value = colorX.Green;
+            //if (_controlPointsSlot.Target.FilterWorldElement() != null)
+            //{
+            //    _controlPointsSlot.Target.Destroy();
+            //    InitControlPoints();
+            //}
+        };
+        if (_sourceMesh.Asset != null && _controlPointsSlot.Target is null)
+        {
+            InitControlPoints();
+        }
     }
 
     public void Setup(IAssetProvider<Mesh> meshProvider)
@@ -95,72 +139,39 @@ public class EditableMesh : ProceduralMesh
             throw new ArgumentException("Provided mesh asset is null!");
         }
         _sourceMesh.Target = meshProvider;
-        CreateCollider();
-        Init();
+        _controlPointMaterial.Target = Slot.AttachComponent<UnlitMaterial>();
+        _controlPointMaterial.Target.TintColor.Value = colorX.Green;
+        InitControlPoints();
     }
 
-    private void Init()
+    private void InitControlPoints()
     {
-        localMeshData = new();
+        var mergedVertexData = CollectMergedVertexData(_sourceMesh.Asset.Data);
 
-        localMeshData.Copy(_sourceMesh.Asset.Data);
-
-        var mergedVertexData = CollectMergedVertexData(localMeshData);
-
-        Points.EnsureExactCount(mergedVertexData.Count);
+        _controlPointsSlot.Target = Slot.AddSlot("EditableMesh Control Points");
 
         for (int i = 0; i < mergedVertexData.Count; i++)
         {
             var data = mergedVertexData[i];
 
-            Slot vertSlot;
-            if (Points[i].FilterWorldElement() is null)
-            {
-                vertSlot = Slot.AddSlot($"MergedVert{i}");
-                vertSlot.LocalPosition = data.pos;
-                vertSlot.AttachSphere(0.01f, mat);
-                vertSlot.AttachComponent<Slider>();
-                Points[i] = vertSlot;
-            }
-
-            Update(Points[i].Position_Field);
-            Points[i].Position_Field.OnValueChange += Update;
-            void Update(SyncField<float3> field)
-            {
-                if (localMeshData is null) return;
-                foreach (var vert in data.vertices)
-                {
-                    localMeshData.SetVertex(vert.Index, field.Value);
-                }
-
-                //if (!recurseUpdates) return;
-                //recurseUpdates = false;
-                //foreach (var otherSlot in slot.Parent.Children.Where(s => s != slot))
-                //{
-                //    var dist = MathX.Distance(otherSlot.LocalPosition, slot.LocalPosition);
-                //    if (dist < ProportionalEditingRadius.Value)
-                //    {
-                //        var res = MathX.Remap(dist, 0, ProportionalEditingRadius.Value, 1 - ProportionalEditingStrength.Value, 1);
-                //        if (res == 0f)
-                //        {
-                //            res = float.MinValue;
-                //        }
-                //        otherSlot.LocalPosition = MathX.Lerp(field.Value, otherSlot.LocalPosition, res);
-                //    }
-                //}
-                //recurseUpdates = true;
-
-                MarkChangeDirty();
-            }
+            var vertSlot = _controlPointsSlot.Target.AddSlot($"ControlPoint{i}");
+            vertSlot.ChildIndex = i;
+            vertSlot.LocalPosition = data.pos;
+            vertSlot.AttachSphere(0.01f, _controlPointMaterial.Target);
+            vertSlot.AttachComponent<Slider>();
+            var controlPointComp = vertSlot.AttachComponent<EditableMeshControlPoint>();
+            controlPointComp.EditableMesh.Target = this;
         }
 
-        MarkChangeDirty();
+        //MarkChangeDirty();
     }
 
     protected override void ClearMeshData()
     {
-        localMeshData?.Clear();
-        localMeshData = null;
+        storedMeshX?.Clear();
+        storedMeshX = null;
+        mergedVertexData?.Clear();
+        mergedVertexData = null;
     }
 
     private static bool ShouldMerge(float3 p1, float3 p2)
@@ -201,13 +212,39 @@ public class EditableMesh : ProceduralMesh
 
     protected override void UpdateMeshData(MeshX meshx)
     {
-        if (localMeshData is null)
+        if (_sourceMesh.Asset?.Data is null)
         {
             meshx.Clear();
+            _sourceMesh.ListenToAssetUpdates = true;
+            UniLog.Log($"{nameof(_sourceMesh)} Asset null. Listening for updates...");
             return;
         }
 
-        meshx.Copy(localMeshData);
+        if (_sourceMesh.ListenToAssetUpdates)
+        {
+            UniLog.Log($"{nameof(_sourceMesh)} Asset loaded. No longer listening for updates.");
+            _sourceMesh.ListenToAssetUpdates = false;
+        }
+
+        if (storedMeshX != meshx)
+        {
+            UniLog.Log($"Storing new MeshX data.");
+            storedMeshX = meshx;
+            storedMeshX.Copy(_sourceMesh.Asset.Data);
+            mergedVertexData = CollectMergedVertexData(storedMeshX);
+        }
+
+        for (int i = 0; i < mergedVertexData.Count; i++)
+        {
+            var data = mergedVertexData[i];
+
+            Slot vertSlot = _controlPointsSlot.Target[i]; // Could throw null ref exception but it's probably okay
+
+            foreach (var vert in data.vertices)
+            {
+                storedMeshX.SetVertex(vert.Index, vertSlot.LocalPosition);
+            }
+        }
     }
 }
 
@@ -238,18 +275,30 @@ public class MeshEditTool : Tool
             RaycastHit hit = potentialHit.Value;
             if (hit.Collider.Slot.GetComponent<MeshRenderer>() is MeshRenderer meshRenderer)
             {
-                var hitMesh = meshRenderer.Mesh.Asset;
-                if (hitMesh != null)
+                var hitMesh = meshRenderer.Mesh.Target;
+                if (hitMesh?.Asset?.Data != null && hitMesh is StaticMesh && hit.Collider.Slot.GetComponent<EditableMesh>() is null)
                 {
-                    //var editableMesh = LocalUserSpace.AddSlot("EditableMesh").AttachComponent<EditableMesh>();
                     var editableMesh = hit.Collider.Slot.AttachComponent<EditableMesh>();
-                    //editableMesh.Slot.CopyTransform(hit.Collider.Slot);
-                    editableMesh.Setup(meshRenderer.Mesh.Target);
+                    editableMesh.Setup(hitMesh);
                     meshRenderer.Mesh.Target = editableMesh;
-                    var newCol = editableMesh.Slot.GetComponent<MeshCollider>(col => col.Mesh.Target == editableMesh);
-                    newCol.Type.Value = hit.Collider.ColliderType;
-                    newCol.CharacterCollider.Value = hit.Collider.CharacterCollider;
-                    hit.Collider.Destroy();
+                    
+                    MeshCollider meshCollider;
+                    if (hit.Collider is MeshCollider existingMeshCollider && existingMeshCollider.Mesh.Target == hitMesh)
+                    {
+                        meshCollider = existingMeshCollider;
+                    }
+                    else
+                    {
+                        meshCollider = hit.Collider.Slot.AttachComponent<MeshCollider>();
+                        meshCollider.Type.Value = hit.Collider.ColliderType;
+                        meshCollider.CharacterCollider.Value = hit.Collider.CharacterCollider;
+                        editableMesh._newCollider.Target = meshCollider;
+
+                        hit.Collider.Enabled = false;
+                        editableMesh._originalCollider.Target = hit.Collider;
+                    }
+
+                    meshCollider.Mesh.Target = editableMesh;
                 }
             }
         }
