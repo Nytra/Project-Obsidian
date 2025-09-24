@@ -15,6 +15,8 @@ public class EditableMeshControlPoint : Component
 {
     protected readonly SyncRef<EditableMesh> _editableMesh;
 
+    public EditableMesh EditableMesh => _editableMesh.Target;
+
     public void Setup(EditableMesh editableMesh)
     {
         _editableMesh.Target = editableMesh;
@@ -23,10 +25,7 @@ public class EditableMeshControlPoint : Component
     protected override void OnDestroying()
     {
         base.OnDestroying();
-        if (_editableMesh.Target.FilterWorldElement() != null)
-        {
-            _editableMesh.Target.Destroy();
-        }
+        _editableMesh.Target?.Destroy();
     }
 
     protected override void OnStart()
@@ -59,46 +58,42 @@ public class EditableMesh : ProceduralMesh
         public HashSet<Vertex> vertices = new();
     }
 
+    private void DebugLog(string msg)
+    {
+        UniLog.Log($"[EditableMesh {this.ReferenceID.ToString()} {_sourceMesh.Target?.ReferenceID.ToString() ?? "NULL"}] {msg}");
+    }
+
     protected override void OnDestroy()
     {
         base.OnDestroy();
 
-        if (_controlPointsSlot.Target.FilterWorldElement() != null)
-        {
-            _controlPointsSlot.Target.Destroy();
-        }
+        _controlPointsSlot.Target?.Destroy();
 
-        if (_controlPointMaterial.Target.FilterWorldElement() != null)
-        {
-            _controlPointMaterial.Target.Destroy();
-        }
+        _controlPointMaterial.Target?.Destroy();
 
         // If this ProceduralMesh was baked, nothing should be referencing it anymore
 
-        UniLog.Log($"[EditableMesh] OnDestroy. AssetReferenceCount: {AssetReferenceCount}");
+        DebugLog($"[EditableMesh] OnDestroy. AssetReferenceCount: {AssetReferenceCount}");
 
         foreach (var reference in References)
         {
-            UniLog.Log($"Reference: {reference.Parent.Name}");
+            DebugLog($"Reference: {reference.Parent.Name}");
         }
 
         if (AssetReferenceCount != 0)
         {
             // EditableMesh wasn't baked.
 
-            UniLog.Log($"Wasn't baked.");
+            DebugLog($"Wasn't baked.");
 
-            if (_newCollider.Target.FilterWorldElement() != null)
-            {
-                _newCollider.Target.Destroy();
-            }
+            _newCollider.Target?.Destroy();
 
             foreach (var reference in References)
             {
                 reference.Target = _sourceMesh.Target;
             }
 
-            if (_originalCollider.Target.FilterWorldElement() != null)
+            if (_originalCollider.Target != null)
             {
                 _originalCollider.Target.Enabled = true;
             }
@@ -107,14 +102,11 @@ public class EditableMesh : ProceduralMesh
         {
             // EditableMesh has most likely been baked because nothing references it
 
-            UniLog.Log($"Most likely baked.");
+            DebugLog($"Baked.");
 
-            if (_originalCollider.Target.FilterWorldElement() != null)
-            {
-                _originalCollider.Target.Destroy();
-            }
+            _originalCollider.Target?.Destroy();
 
-            if (_sourceMesh.Target.FilterWorldElement() != null)
+            if (_sourceMesh.Target != null)
             {
                 var assetSlot = World.AssetsSlot.AddSlot("EditableMesh Original Mesh");
                 assetSlot.MoveComponent((Component)_sourceMesh.Target);
@@ -126,13 +118,14 @@ public class EditableMesh : ProceduralMesh
     {
         _sourceMesh.OnTargetChange += (syncRef) => 
         { 
-            // Handle mesh changes in here
+            // Handle mesh changes in here?
             // Should regen control points and clear mesh data
         };
-        if (_sourceMesh.Asset != null && _controlPointsSlot.Target is null)
-        {
-            InitControlPoints();
-        }
+
+        //if (_sourceMesh.Asset != null && _controlPointsSlot.Target is null)
+        //{
+            //InitControlPoints();
+        //}
     }
 
     public void Setup(IAssetProvider<Mesh> meshProvider)
@@ -239,19 +232,19 @@ public class EditableMesh : ProceduralMesh
         {
             meshx.Clear();
             _sourceMesh.ListenToAssetUpdates = true;
-            UniLog.Log($"{nameof(_sourceMesh)} Asset null. Listening for updates...");
+            DebugLog($"{nameof(_sourceMesh)} Asset null. Listening for updates...");
             return;
         }
 
         if (_sourceMesh.ListenToAssetUpdates)
         {
-            UniLog.Log($"{nameof(_sourceMesh)} Asset loaded. No longer listening for updates.");
+            DebugLog($"{nameof(_sourceMesh)} Asset loaded. No longer listening for updates.");
             _sourceMesh.ListenToAssetUpdates = false;
         }
 
         if (storedMeshX != meshx)
         {
-            UniLog.Log($"Storing new MeshX data.");
+            DebugLog($"Storing new MeshX data.");
             storedMeshX = meshx;
             storedMeshX.Copy(_sourceMesh.Asset.Data);
             mergedVertexData = CollectMergedVertexData(storedMeshX);
@@ -318,35 +311,50 @@ public class MeshEditTool : Tool
     private void Restore()
     {
         _currentEditableMesh.Target?.Destroy();
+        _currentEditableMesh.Target = null;
     }
 
     private void Bake()
     {
         _currentEditableMesh.Target?.BakeMesh();
+        _currentEditableMesh.Target = null;
     }
 
     public override void OnPrimaryPress()
     {
+        if (_currentEditableMesh.Target != null)
+        {
+            return;
+        }
+
         RaycastHit? potentialHit = GetHit();
         if (potentialHit.HasValue)
         {
             RaycastHit hit = potentialHit.Value;
-            if (hit.Collider.Slot.GetComponent<MeshRenderer>() is MeshRenderer meshRenderer)
+            Slot targetSlot = hit.Collider.Slot;
+            if (targetSlot.GetComponent<MeshRenderer>() is MeshRenderer meshRenderer)
             {
+                if (targetSlot.GetComponent<EditableMeshControlPoint>() is EditableMeshControlPoint controlPoint)
+                {
+                    if (controlPoint.EditableMesh?.Slot is Slot editableMeshSlot)
+                        targetSlot = editableMeshSlot;
+                    else
+                        return;
+                }
+
+                if (targetSlot.GetComponent<EditableMesh>() is EditableMesh existingEditableMesh)
+                {
+                    _currentEditableMesh.Target = existingEditableMesh;
+                    HighlightHelper.FlashHighlight(targetSlot, highlightable => highlightable == meshRenderer, colorX.Green);
+                    return;
+                }
+
                 var hitMesh = meshRenderer.Mesh.Target;
                 if (hitMesh?.Asset?.Data != null)
                 {
-                    if (hit.Collider.Slot.GetComponent<EditableMesh>() != null) return;
-                    if (hit.Collider.Slot.GetComponent<EditableMeshControlPoint>() != null) return;
-
                     if (hitMesh is StaticMesh)
                     {
-                        if (_currentEditableMesh.Target.FilterWorldElement() != null)
-                        {
-                            Restore();
-                        }
-
-                        var editableMesh = hit.Collider.Slot.AttachComponent<EditableMesh>();
+                        var editableMesh = targetSlot.AttachComponent<EditableMesh>();
 
                         meshRenderer.Mesh.Target = editableMesh;
 
@@ -356,7 +364,7 @@ public class MeshEditTool : Tool
                         }
                         else
                         {
-                            var newCollider = hit.Collider.Slot.AttachComponent<MeshCollider>();
+                            var newCollider = targetSlot.AttachComponent<MeshCollider>();
                             newCollider.Type.Value = hit.Collider.ColliderType;
                             newCollider.CharacterCollider.Value = hit.Collider.CharacterCollider;
                             newCollider.Mesh.Target = editableMesh;
@@ -368,10 +376,11 @@ public class MeshEditTool : Tool
 
                         editableMesh.Setup(hitMesh);
                         _currentEditableMesh.Target = editableMesh;
+                        HighlightHelper.FlashHighlight(targetSlot, highlightable => highlightable == meshRenderer, colorX.Green);
                     }
                     else
                     {
-                        HighlightHelper.FlashHighlight(hit.Collider.Slot, highlightable => highlightable == meshRenderer, colorX.Red);
+                        HighlightHelper.FlashHighlight(targetSlot, highlightable => highlightable == meshRenderer, colorX.Red);
                         UserRoot userroot = World.LocalUser.Root;
                         NotificationMessage.SpawnTextMessage(World, userroot.HeadPosition + userroot.HeadSlot.Forward * 0.5f, "The target must be a StaticMesh!", colorX.Red);
                     }
