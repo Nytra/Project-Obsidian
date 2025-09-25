@@ -38,6 +38,7 @@ namespace Obsidian
 
         protected override void OnAwake()
         {
+            base.OnAwake();
             Threshold.Value = 1f;
             FieldSize.Value = float3.One * 10f;
             Resolution.Value = 32;
