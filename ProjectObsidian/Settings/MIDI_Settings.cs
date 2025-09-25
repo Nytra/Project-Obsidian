@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using FrooxEngine;
-using Elements.Core;
-using Elements.Assets;
 using System.Threading.Tasks;
-using RtMidi.Core.Devices.Infos;
+using Elements.Assets;
+using Elements.Core;
+using FrooxEngine;
+using FrooxEngine.ProtoFlux.CoreNodes;
 using RtMidi.Core;
+using RtMidi.Core.Devices.Infos;
 
 namespace Obsidian;
 
@@ -36,6 +37,13 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
         protected override void OnAwake()
         {
             base.OnAwake();
+        }
+
+        [SettingProperty(null, null, null, false, 0L, null, null)]
+        [SyncMethod(typeof(Action), new string[] { })]
+        public void CopyName()
+        {
+            InputInterface.Clipboard.SetText(DeviceName.Value);
         }
 
         [SettingProperty(null, null, null, false, 0L, null, null)]

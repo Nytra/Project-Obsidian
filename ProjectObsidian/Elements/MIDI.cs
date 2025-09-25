@@ -12,19 +12,31 @@ using RtMidi.Core;
 using RtMidi.Core.Devices;
 using RtMidi.Core.Devices.Infos;
 using RtMidi.Core.Messages;
+using Valve.VR;
 
 namespace Obsidian.Elements;
 
-//public struct TimestampedMidiEvent
-//{
-//    public MidiEvent midiEvent;
-//    public long timestamp;
-//    public TimestampedMidiEvent(MidiEvent _midiEvent, long _timestamp)
-//    {
-//        midiEvent = _midiEvent;
-//        timestamp = _timestamp;
-//    }
-//}
+internal enum BufferedMidiMessageType
+{
+    ControlChange,
+    ProgramChange
+}
+
+internal struct BufferedMidiMessage
+{
+    public object msg;
+
+    public long timestamp;
+
+    public BufferedMidiMessageType type;
+
+    public BufferedMidiMessage(object _msg, long _timestamp, BufferedMidiMessageType _type)
+    {
+        msg = _msg;
+        timestamp = _timestamp;
+        type = _type;
+    }
+}
 
 public interface IMidiInputListener
 {
@@ -69,51 +81,235 @@ public class MidiInputConnection
 
     public List<IMidiInputListener> Listeners = new();
 
-    //event NoteOffMessageHandler NoteOff;
+    private List<BufferedMidiMessage> _eventBuffer = new();
 
-    //event NoteOnMessageHandler NoteOn;
+    private const long MESSAGE_BUFFER_TIME_MILLISECONDS = 3;
 
-    //event PolyphonicKeyPressureMessageHandler PolyphonicKeyPressure;
-
-    //event ControlChangeMessageHandler ControlChange;
-
-    //event ProgramChangeMessageHandler ProgramChange;
-
-    //event ChannelPressureMessageHandler ChannelPressure;
-
-    //event PitchBendMessageHandler PitchBend;
-
-    //event NrpnMessageHandler Nrpn;
-
-    //event SysExMessageHandler SysEx;
-
-    //event MidiTimeCodeQuarterFrameHandler MidiTimeCodeQuarterFrame;
-
-    //event SongPositionPointerHandler SongPositionPointer;
-
-    //event SongSelectHandler SongSelect;
-
-    //event TuneRequestHandler TuneRequest;
+    private long _lastMessageBufferStartTime = 0;
 
     public void OnNoteOff(IMidiInputDevice sender, in NoteOffMessage msg)
     {
-        if (DEBUG) UniLog.Log("* NoteOff");
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
         var data = new MIDI_NoteEventData((int)msg.Channel, (int)msg.Key, msg.Velocity);
         Listeners.ForEach(l => l.TriggerNoteOff(data));
     }
 
     public void OnNoteOn(IMidiInputDevice sender, in NoteOnMessage msg)
     {
-        if (DEBUG) UniLog.Log("* NoteOn");
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
         var data = new MIDI_NoteEventData((int)msg.Channel, (int)msg.Key, msg.Velocity);
         Listeners.ForEach(l => l.TriggerNoteOn(data));
+    }
+
+    public void OnPolyphonicKeyPressure(IMidiInputDevice sender, in PolyphonicKeyPressureMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
+        var data = new MIDI_PolyphonicAftertouchEventData((int)msg.Channel, (int)msg.Key, msg.Pressure);
+        Listeners.ForEach(l => l.TriggerPolyphonicAftertouch(data));
+    }
+
+    public void OnControlChange(IMidiInputDevice sender, in ControlChangeMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
+
+        _eventBuffer.Add(new BufferedMidiMessage(msg, DateTime.UtcNow.Ticks, BufferedMidiMessageType.ControlChange));
+
+        CheckFlushBuffer();
+    }
+
+    public void OnProgramChange(IMidiInputDevice sender, in ProgramChangeMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
+
+        _eventBuffer.Add(new BufferedMidiMessage(msg, DateTime.UtcNow.Ticks, BufferedMidiMessageType.ProgramChange));
+
+        CheckFlushBuffer();
+    }
+
+    public void OnChannelPressure(IMidiInputDevice sender, in ChannelPressureMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
+        var data = new MIDI_ChannelAftertouchEventData((int)msg.Channel, msg.Pressure);
+        Listeners.ForEach(l => l.TriggerChannelAftertouch(data));
+    }
+
+    public void OnPitchBend(IMidiInputDevice sender, in PitchBendMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
+        var data = new MIDI_PitchWheelEventData((int)msg.Channel, msg.Value);
+        Listeners.ForEach(l => l.TriggerPitchWheel(data));
+    }
+
+    public void OnNrpn(IMidiInputDevice sender, in NrpnMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
+        // Unhandled
+    }
+
+    public void OnSysEx(IMidiInputDevice sender, in SysExMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
+        if (DEBUG) UniLog.Log($"NumBytes: {msg.Data.Length}");
+        foreach (var byt in msg.Data)
+        {
+            if (DEBUG) UniLog.Log($"{byt.ToString()}");
+        }
+
+        //foreach (var e in events)
+        //{
+        //    var str = e.ToString();
+        //    if (DEBUG) UniLog.Log("* " + str);
+        //    switch (e.StatusByte)
+        //    {
+        //        case MidiEvent.MidiClock:
+        //            if (DEBUG) UniLog.Log("* MidiClock");
+        //            Listeners.ForEach(l => l.TriggerMidiClock(new MIDI_SystemRealtimeEventData()));
+        //            break;
+        //        case MidiEvent.MidiTick:
+        //            if (DEBUG) UniLog.Log("* MidiTick");
+        //            Listeners.ForEach(l => l.TriggerMidiTick(new MIDI_SystemRealtimeEventData()));
+        //            break;
+        //        case MidiEvent.MidiStart:
+        //            if (DEBUG) UniLog.Log("* MidiStart");
+        //            Listeners.ForEach(l => l.TriggerMidiStart(new MIDI_SystemRealtimeEventData()));
+        //            break;
+        //        case MidiEvent.MidiStop:
+        //            if (DEBUG) UniLog.Log("* MidiStop");
+        //            Listeners.ForEach(l => l.TriggerMidiStop(new MIDI_SystemRealtimeEventData()));
+        //            break;
+        //        case MidiEvent.MidiContinue:
+        //            if (DEBUG) UniLog.Log("* MidiContinue");
+        //            Listeners.ForEach(l => l.TriggerMidiContinue(new MIDI_SystemRealtimeEventData()));
+        //            break;
+        //        case MidiEvent.ActiveSense:
+        //            if (DEBUG) UniLog.Log("* ActiveSense");
+        //            Listeners.ForEach(l => l.TriggerActiveSense(new MIDI_SystemRealtimeEventData()));
+        //            break;
+        //        case MidiEvent.Reset:
+        //            // Same as Meta
+        //            if (DEBUG) UniLog.Log("* Reset");
+        //            Listeners.ForEach(l => l.TriggerReset(new MIDI_SystemRealtimeEventData()));
+        //            break;
+        //    }
+        //}
+        //return;
+    }
+
+    public void OnMidiTimeCodeQuarterFrame(IMidiInputDevice sender, in MidiTimeCodeQuarterFrameMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name}");
+        // Unhandled
+    }
+
+    public void OnSongPositionPointer(IMidiInputDevice sender, in SongPositionPointerMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name}");
+        // Unhandled
+    }
+
+    public void OnSongSelect(IMidiInputDevice sender, in SongSelectMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name}");
+        // Unhandled
+    }
+
+    public void OnTuneRequest(IMidiInputDevice sender, in TuneRequestMessage msg)
+    {
+        if (DEBUG) UniLog.Log($"* {msg.GetType().Name}");
+        // Unhandled
     }
 
     private const bool DEBUG = true;
 
     public void Initialize()
     {
+        _eventBuffer.Clear();
+        _lastMessageBufferStartTime = 0;
         Listeners.Clear();
+    }
+
+    // What
+    private ushort CombineBytes(byte First, byte Second)
+    {
+        ushort _14bit;
+        _14bit = Second;
+        _14bit <<= 7;
+        _14bit |= First;
+        return _14bit;
+    }
+
+    private bool IsCCFineMessage()
+    {
+        if (_eventBuffer.Count <= 1) return false;
+        long timestamp = _eventBuffer[0].timestamp;
+        if (_eventBuffer[0].type == BufferedMidiMessageType.ControlChange && _eventBuffer[1].type == BufferedMidiMessageType.ControlChange
+            && ((ControlChangeMessage)_eventBuffer[0].msg).Control == ((ControlChangeMessage)_eventBuffer[1].msg).Control - 32)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private void FlushMessageBuffer()
+    {
+        if (_eventBuffer.Count == 0)
+        {
+            UniLog.Log("Message buffer empty.");
+            return;
+        }
+
+        var batchStartTime = _eventBuffer[0].timestamp;
+        if (DEBUG) UniLog.Log("Flushing message buffer from start time: " + batchStartTime.ToString());
+
+        while (_eventBuffer.Count > 0)
+        {
+            while (IsCCFineMessage())
+            {
+                var first = (ControlChangeMessage)_eventBuffer[0].msg;
+                if (DEBUG) UniLog.Log(first.ToString());
+                var second = (ControlChangeMessage)_eventBuffer[1].msg;
+                if (DEBUG) UniLog.Log(second.ToString());
+                var finalValue = CombineBytes((byte)second.Value, (byte)first.Value);
+                if (DEBUG) UniLog.Log($"CC fine. Value: " + finalValue.ToString());
+                Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData((int)first.Channel, first.Control, finalValue, _coarse: false)));
+                _eventBuffer.RemoveRange(0, 2);
+            }
+
+            if (_eventBuffer.Count == 0) break;
+
+            var e = _eventBuffer[0];
+            if (DEBUG) UniLog.Log(e.ToString());
+            switch (e.type)
+            {
+                case BufferedMidiMessageType.ControlChange:
+                    if (DEBUG) UniLog.Log("CC");
+                    var ccMsg = (ControlChangeMessage)e.msg;
+                    Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData((int)ccMsg.Channel, ccMsg.Control, ccMsg.Value, _coarse: true)));
+                    break;
+                // Program events are buffered because they can be sent after a CC fine message for Bank Select, one of my devices sends consecutively: CC (Bank Select) -> CC (Bank Select Lsb) -> Program for some buttons
+                case BufferedMidiMessageType.ProgramChange:
+                    if (DEBUG) UniLog.Log("Program");
+                    var programMsg = (ProgramChangeMessage)e.msg;
+                    Listeners.ForEach(l => l.TriggerProgram(new MIDI_ProgramEventData((int)programMsg.Channel, programMsg.Program)));
+                    break;
+                default:
+                    throw new Exception($"Unexpected {nameof(BufferedMidiMessageType)}: {e.type} {e.msg}");
+            }
+            _eventBuffer.RemoveAt(0);
+        }
+        if (DEBUG) UniLog.Log("Finished flushing message buffer from start time: " + batchStartTime.ToString());
+    }
+
+    public async void CheckFlushBuffer()
+    {
+        var message = _eventBuffer[0];
+        if (message.timestamp - _lastMessageBufferStartTime > MESSAGE_BUFFER_TIME_MILLISECONDS * 10000) // convert milliseconds to ticks
+        {
+            _lastMessageBufferStartTime = message.timestamp;
+            if (DEBUG) UniLog.Log("* New message batch created: " + message.timestamp.ToString());
+            await Task.Delay((int)MESSAGE_BUFFER_TIME_MILLISECONDS);
+            FlushMessageBuffer();
+        }
     }
 }
 
@@ -155,8 +351,21 @@ public static class MidiDeviceConnectionManager
         UniLog.Log("Releasing input device...");
 
         var input = conn.Input;
+
         input.NoteOn -= conn.OnNoteOn;
         input.NoteOff -= conn.OnNoteOff;
+        input.PolyphonicKeyPressure -= conn.OnPolyphonicKeyPressure;
+        input.ControlChange -= conn.OnControlChange;
+        input.ProgramChange -= conn.OnProgramChange;
+        input.ChannelPressure -= conn.OnChannelPressure;
+        input.PitchBend -= conn.OnPitchBend;
+        input.Nrpn -= conn.OnNrpn;
+        input.SysEx -= conn.OnSysEx;
+        input.MidiTimeCodeQuarterFrame -= conn.OnMidiTimeCodeQuarterFrame;
+        input.SongPositionPointer -= conn.OnSongPositionPointer;
+        input.SongSelect -= conn.OnSongSelect;
+        input.TuneRequest -= conn.OnTuneRequest;
+
         input.Dispose();
 
         UniLog.Log("Device released.");
@@ -170,8 +379,21 @@ public static class MidiDeviceConnectionManager
         var input = details.CreateDevice();
         var conn = Pool<MidiInputConnection>.Borrow();
         conn.Input = input;
+
         input.NoteOn += conn.OnNoteOn;
         input.NoteOff += conn.OnNoteOff;
+        input.PolyphonicKeyPressure += conn.OnPolyphonicKeyPressure;
+        input.ControlChange += conn.OnControlChange;
+        input.ProgramChange += conn.OnProgramChange;
+        input.ChannelPressure += conn.OnChannelPressure;
+        input.PitchBend += conn.OnPitchBend;
+        input.Nrpn += conn.OnNrpn;
+        input.SysEx += conn.OnSysEx;
+        input.MidiTimeCodeQuarterFrame += conn.OnMidiTimeCodeQuarterFrame;
+        input.SongPositionPointer += conn.OnSongPositionPointer;
+        input.SongSelect += conn.OnSongSelect;
+        input.TuneRequest += conn.OnTuneRequest;
+
         input.Open();
         _deviceConnectionMap.Add(details.Name, conn);
         return conn;
