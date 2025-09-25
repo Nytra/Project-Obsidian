@@ -27,6 +27,8 @@ public class PluginSettings : SettingComponent<PluginSettings>
 
     protected override void OnStart()
     {
+        ObsidianInitializer.Initialize();
+
         var obsidianRegistry = GetObsidianRegistry();
         if (PluginLoaded.Value == false && obsidianRegistry != null && coreAssemblies.Contains(obsidianRegistry))
         {
