@@ -60,7 +60,7 @@ public class EditableMesh : ProceduralMesh
 
     private void DebugLog(string msg)
     {
-        UniLog.Log($"[EditableMesh {this.ReferenceID.ToString()} {_sourceMesh.Target?.ReferenceID.ToString() ?? "NULL"}] {msg}");
+        UniLog.Log($"[EditableMesh {this.ReferenceID.ToString()}] {msg}");
     }
 
     protected override void OnDestroy()
@@ -73,7 +73,7 @@ public class EditableMesh : ProceduralMesh
 
         // If this ProceduralMesh was baked, nothing should be referencing it anymore
 
-        DebugLog($"[EditableMesh] OnDestroy. AssetReferenceCount: {AssetReferenceCount}");
+        DebugLog($"OnDestroy. AssetReferenceCount: {AssetReferenceCount}");
 
         foreach (var reference in References)
         {
