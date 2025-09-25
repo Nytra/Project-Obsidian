@@ -4,6 +4,7 @@ using System.Numerics;
 using Elements.Assets;
 using Elements.Core;
 using FrooxEngine;
+using Obsidian.Components.Utility;
 
 namespace Obsidian;
 
