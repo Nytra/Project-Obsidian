@@ -30,9 +30,6 @@
     <Reference Include="Awwdio">
       <HintPath>$(ResonitePath)Awwdio.dll</HintPath>
     </Reference>
-    <Reference Include="Commons.Music.Midi">
-      <HintPath>..\lib\Commons.Music.Midi.dll</HintPath>
-    </Reference>
     <Reference Include="Elements.Core">
       <HintPath>$(ResonitePath)Elements.Core.dll</HintPath>
     </Reference>
@@ -62,6 +59,9 @@
     </Reference>
 	  <Reference Include="Elements.Assets">
 		  <HintPath>$(ResonitePath)Elements.Assets.dll</HintPath>
+	  </Reference>
+	  <Reference Include="RtMidi.Core">
+	    <HintPath>..\lib\RtMidi.Core.dll</HintPath>
 	  </Reference>
 	  <Reference Include="SharpPipe">
 	    <HintPath>$(ResonitePath)SharpPipe.dll</HintPath>

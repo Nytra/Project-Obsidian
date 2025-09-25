@@ -4,8 +4,9 @@ using System.Linq;
 using FrooxEngine;
 using Elements.Core;
 using Elements.Assets;
-using Commons.Music.Midi;
 using System.Threading.Tasks;
+using RtMidi.Core.Devices.Infos;
+using RtMidi.Core;
 
 namespace Obsidian;
 
@@ -28,7 +29,7 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
         [SettingProperty(null, null, null, false, 0L, null, null)]
         public readonly Sync<bool> AllowConnections;
 
-        public IMidiPortDetails Details { get; internal set; }
+        public IMidiDeviceInfo Details { get; internal set; }
 
         public bool IsOutput => this.Parent.Name == "OutputDevices";
 
@@ -96,18 +97,18 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
         {
             device.DeviceFound.Value = false;
         }
-        var access = MidiAccessManager.Default;
-        foreach (var input in access.Inputs)
+        var access = MidiDeviceManager.Default;
+        foreach (var input in access.InputDevices)
         {
             RegisterInputDevice(input);
         }
-        foreach (var output in access.Outputs)
+        foreach (var output in access.OutputDevices)
         {
             RegisterOutputDevice(output);
         }
     }
 
-    private void RegisterInputDevice(IMidiPortDetails details)
+    private void RegisterInputDevice(IMidiInputDeviceInfo details)
     {
         if (string.IsNullOrEmpty(details.Name))
         {
@@ -123,7 +124,7 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
         device.DeviceFound.Value = true;
     }
 
-    private void RegisterOutputDevice(IMidiPortDetails details)
+    private void RegisterOutputDevice(IMidiOutputDeviceInfo details)
     {
         if (string.IsNullOrEmpty(details.Name))
         {

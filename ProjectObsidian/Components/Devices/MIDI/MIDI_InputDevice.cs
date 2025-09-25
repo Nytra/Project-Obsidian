@@ -3,7 +3,9 @@ using FrooxEngine;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using Commons.Music.Midi;
+using RtMidi.Core.Devices;
+using RtMidi.Core.Messages;
+using RtMidi.Core;
 using Obsidian.Elements;
 using Obsidian;
 using System;
@@ -69,6 +71,10 @@ public class MIDI_InputDevice : Component, IMidiInputListener
         Settings.GetActiveSetting<MIDI_Settings>();
         Settings.RegisterValueChanges<MIDI_Settings>(OnInputDeviceSettingsChanged);
         RunInUpdates(30, Update);
+
+        // List all available MIDI API's
+        foreach (var api in MidiDeviceManager.Default.GetAvailableMidiApis())
+            UniLog.Log($"Available MIDI API: {api}");
     }
 
     private void OnInputDeviceSettingsChanged(MIDI_Settings setting)
@@ -191,25 +197,25 @@ public class MIDI_InputDevice : Component, IMidiInputListener
                 return;
             }
 
-            if (Connection != null
-                && (Connection.Input.Connection == MidiPortConnectionState.Open || Connection.Input.Connection == MidiPortConnectionState.Pending))
+            if (Connection != null && Connection.Input.IsOpen)
             {
-                if (MidiAccessManager.Default.Inputs.Any(inp => inp.Name == DeviceName.Value))
+                if (MidiDeviceManager.Default.InputDevices.Any(inp => inp.Name == DeviceName.Value))
                 {
-                    UniLog.Log("Already connected. Connection state: " + Connection.Input.Connection.ToString());
+                    UniLog.Log("Already connected.");
                     return;
                 }
                 else
                 {
-                    UniLog.Log("Device was removed after a conection.");
+                    // Is this still needed?
+                    UniLog.Log("Device was removed after a connection.");
                     MidiDeviceConnectionManager.UnregisterInputListener(this);
                     SetIsConnected(false);
                     return;
                 }
             }
 
-            var access = MidiAccessManager.Default;
-            var targetDevice = access.Inputs.FirstOrDefault(dev => dev.Name == DeviceName.Value);
+            var access = MidiDeviceManager.Default;
+            var targetDevice = access.InputDevices.FirstOrDefault(dev => dev.Name == DeviceName.Value);
             if (targetDevice != null)
             {
                 UniLog.Log("Found the target device.");
