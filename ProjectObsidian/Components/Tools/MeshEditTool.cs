@@ -116,11 +116,11 @@ public class EditableMesh : ProceduralMesh
 
     protected override void OnStart()
     {
-        _sourceMesh.OnTargetChange += (syncRef) => 
-        { 
+        //_sourceMesh.OnTargetChange += (syncRef) => 
+        //{ 
             // Handle mesh changes in here?
             // Should regen control points and clear mesh data
-        };
+        //};
 
         //if (_sourceMesh.Asset != null && _controlPointsSlot.Target is null)
         //{
