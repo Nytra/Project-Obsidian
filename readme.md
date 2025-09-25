@@ -84,3 +84,11 @@ https://github.com/ValveSoftware/steamvr_unity_plugin
 https://github.com/Nytra/managed-midi
 
 https://github.com/Nytra/alsa-sharp
+
+## Additional info
+
+The following code files contain some algorithms produced with the assistance of AI LLMs:
+
+https://github.com/Custom-Extension-Works/Project-Obsidian/blob/main/ProjectObsidian/Components/Mesh/MetaballShape.cs
+
+https://github.com/Custom-Extension-Works/Project-Obsidian/blob/main/ProjectObsidian/Elements/Audio.cs
