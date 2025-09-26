@@ -78,6 +78,7 @@ public class MidiInputConnection
 
     public void Initialize()
     {
+        Input = null;
         _eventBuffer.Clear();
         _lastMessageBufferStartTime = 0;
         _bufferedMessagesToHandle = 0;
