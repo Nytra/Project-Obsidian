@@ -65,6 +65,8 @@ public class MIDI_InputDevice : Component, IMidiInputListener
     public void TriggerActiveSense(MIDI_SystemRealtimeEventData eventData) => ActiveSense?.Invoke(this, eventData);
     public void TriggerReset(MIDI_SystemRealtimeEventData eventData) => Reset?.Invoke(this, eventData);
 
+    string IMidiInputListener.Name => $"{Name} {ReferenceID}";
+
     protected override void OnStart()
     {
         base.OnStart();
@@ -197,7 +199,7 @@ public class MIDI_InputDevice : Component, IMidiInputListener
                 return;
             }
 
-            if (Connection != null && Connection.Input.IsOpen)
+            if (Connection != null && Connection.Input?.IsOpen == true)
             {
                 if (MidiDeviceManager.Default.InputDevices.Any(inp => inp.Name == DeviceName.Value))
                 {

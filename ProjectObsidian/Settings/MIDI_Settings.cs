@@ -8,8 +8,38 @@ using FrooxEngine;
 using FrooxEngine.ProtoFlux.CoreNodes;
 using RtMidi.Core;
 using RtMidi.Core.Devices.Infos;
+using Serilog;
+using Serilog.Configuration;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace Obsidian;
+
+public class MySink : ILogEventSink
+{
+    private readonly IFormatProvider _formatProvider;
+
+    public MySink(IFormatProvider formatProvider)
+    {
+        _formatProvider = formatProvider;
+    }
+
+    public void Emit(LogEvent logEvent)
+    {
+        var message = logEvent.RenderMessage(_formatProvider);
+        UniLog.Log($"Serilog: " + message);
+    }
+}
+
+public static class MySinkExtensions
+{
+    public static LoggerConfiguration MySink(
+              this LoggerSinkConfiguration loggerConfiguration,
+              IFormatProvider formatProvider = null)
+    {
+        return loggerConfiguration.Sink(new MySink(formatProvider));
+    }
+}
 
 [SettingCategory("Obsidian")]
 public class MIDI_Settings : SettingComponent<MIDI_Settings>
@@ -93,6 +123,7 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
 
     protected override void OnStart()
     {
+        Log.Logger = new LoggerConfiguration().MinimumLevel.Debug().WriteTo.MySink().CreateLogger();
         RefreshDeviceLists();
     }
 

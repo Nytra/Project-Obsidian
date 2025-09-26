@@ -63,6 +63,9 @@
 	  <Reference Include="RtMidi.Core">
 	    <HintPath>..\lib\RtMidi.Core.dll</HintPath>
 	  </Reference>
+	  <Reference Include="Serilog">
+	    <HintPath>..\lib\Serilog.dll</HintPath>
+	  </Reference>
 	  <Reference Include="SharpPipe">
 	    <HintPath>$(ResonitePath)SharpPipe.dll</HintPath>
 	  </Reference>

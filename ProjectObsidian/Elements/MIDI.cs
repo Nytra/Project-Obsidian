@@ -16,25 +16,16 @@ using Valve.VR;
 
 namespace Obsidian.Elements;
 
-internal enum BufferedMidiMessageType
-{
-    ControlChange,
-    ProgramChange
-}
-
 internal struct BufferedMidiMessage
 {
     public object msg;
 
     public long timestamp;
 
-    public BufferedMidiMessageType type;
-
-    public BufferedMidiMessage(object _msg, long _timestamp, BufferedMidiMessageType _type)
+    public BufferedMidiMessage(object _msg)
     {
         msg = _msg;
-        timestamp = _timestamp;
-        type = _type;
+        timestamp = DateTime.Now.Ticks;
     }
 }
 
@@ -73,6 +64,8 @@ public interface IMidiInputListener
     public void TriggerMidiContinue(MIDI_SystemRealtimeEventData eventData);
     public void TriggerActiveSense(MIDI_SystemRealtimeEventData eventData);
     public void TriggerReset(MIDI_SystemRealtimeEventData eventData);
+
+    public string Name {get;}
 }
 
 public class MidiInputConnection
@@ -112,7 +105,7 @@ public class MidiInputConnection
     {
         if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
 
-        _eventBuffer.Add(new BufferedMidiMessage(msg, DateTime.UtcNow.Ticks, BufferedMidiMessageType.ControlChange));
+        _eventBuffer.Add(new BufferedMidiMessage(msg));
 
         CheckFlushBuffer();
     }
@@ -121,7 +114,7 @@ public class MidiInputConnection
     {
         if (DEBUG) UniLog.Log($"* {msg.GetType().Name} {msg}");
 
-        _eventBuffer.Add(new BufferedMidiMessage(msg, DateTime.UtcNow.Ticks, BufferedMidiMessageType.ProgramChange));
+        _eventBuffer.Add(new BufferedMidiMessage(msg));
 
         CheckFlushBuffer();
     }
@@ -223,6 +216,7 @@ public class MidiInputConnection
 
     public void Initialize()
     {
+        Input = null;
         _eventBuffer.Clear();
         _lastMessageBufferStartTime = 0;
         Listeners.Clear();
@@ -242,8 +236,8 @@ public class MidiInputConnection
     {
         if (_eventBuffer.Count <= 1) return false;
         long timestamp = _eventBuffer[0].timestamp;
-        if (_eventBuffer[0].type == BufferedMidiMessageType.ControlChange && _eventBuffer[1].type == BufferedMidiMessageType.ControlChange
-            && ((ControlChangeMessage)_eventBuffer[0].msg).Control == ((ControlChangeMessage)_eventBuffer[1].msg).Control - 32)
+        if (_eventBuffer[0].msg is ControlChangeMessage first && _eventBuffer[1].msg is ControlChangeMessage second
+            && first.Control == second.Control - 32)
         {
             return true;
         }
@@ -278,22 +272,18 @@ public class MidiInputConnection
             if (_eventBuffer.Count == 0) break;
 
             var e = _eventBuffer[0];
-            if (DEBUG) UniLog.Log(e.ToString());
-            switch (e.type)
+            if (DEBUG) UniLog.Log($"{e.msg.GetType().Name} {e.msg}");
+            switch (e.msg)
             {
-                case BufferedMidiMessageType.ControlChange:
-                    if (DEBUG) UniLog.Log("CC");
-                    var ccMsg = (ControlChangeMessage)e.msg;
+                case ControlChangeMessage ccMsg:
                     Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData((int)ccMsg.Channel, ccMsg.Control, ccMsg.Value, _coarse: true)));
                     break;
                 // Program events are buffered because they can be sent after a CC fine message for Bank Select, one of my devices sends consecutively: CC (Bank Select) -> CC (Bank Select Lsb) -> Program for some buttons
-                case BufferedMidiMessageType.ProgramChange:
-                    if (DEBUG) UniLog.Log("Program");
-                    var programMsg = (ProgramChangeMessage)e.msg;
+                case ProgramChangeMessage programMsg:
                     Listeners.ForEach(l => l.TriggerProgram(new MIDI_ProgramEventData((int)programMsg.Channel, programMsg.Program)));
                     break;
                 default:
-                    throw new Exception($"Unexpected {nameof(BufferedMidiMessageType)}: {e.type} {e.msg}");
+                    throw new Exception($"Unexpected {nameof(BufferedMidiMessage)}: {e.msg.GetType().Name} {e.msg}");
             }
             _eventBuffer.RemoveAt(0);
         }
@@ -321,6 +311,7 @@ public static class MidiDeviceConnectionManager
 
     public static MidiInputConnection RegisterInputListener(IMidiInputListener listener, IMidiInputDeviceInfo details)
     {
+        UniLog.Log($"Registering input listener {listener.Name}");
         if (_deviceConnectionMap.TryGetValue(details.Name, out MidiInputConnection conn))
         {
             conn.Listeners.Add(listener);
@@ -336,6 +327,7 @@ public static class MidiDeviceConnectionManager
     {
         if (_listenerConnectionMap.TryGetValue(listener, out MidiInputConnection conn))
         {
+            UniLog.Log($"Unregistering input listener {listener.Name}");
             conn.Listeners.Remove(listener);
             _listenerConnectionMap.Remove(listener);
             if (conn.Listeners.Count == 0)
@@ -348,8 +340,6 @@ public static class MidiDeviceConnectionManager
 
     private static void ReleaseInputConnection(MidiInputConnection conn)
     {
-        UniLog.Log("Releasing input device...");
-
         var input = conn.Input;
 
         input.NoteOn -= conn.OnNoteOn;
@@ -366,10 +356,12 @@ public static class MidiDeviceConnectionManager
         input.SongSelect -= conn.OnSongSelect;
         input.TuneRequest -= conn.OnTuneRequest;
 
+        _deviceConnectionMap.Remove(input.Name);
+
         input.Dispose();
 
         UniLog.Log("Device released.");
-        _deviceConnectionMap.Remove(input.Name);
+
         conn.Initialize();
         Pool<MidiInputConnection>.ReturnCleaned(ref conn);
     }
@@ -394,9 +386,16 @@ public static class MidiDeviceConnectionManager
         input.SongSelect += conn.OnSongSelect;
         input.TuneRequest += conn.OnTuneRequest;
 
-        input.Open();
-        _deviceConnectionMap.Add(details.Name, conn);
-        return conn;
+        if (input.Open())
+        {
+            UniLog.Log($"Input opened successfully");
+            _deviceConnectionMap.Add(details.Name, conn);
+            return conn;
+        }
+        else
+        {
+            throw new Exception($"Failed to open MIDI input connection for device: {input.Name}");
+        }
     }
 }
 
