@@ -215,20 +215,28 @@ public class MidiInputConnection
             var str = e.ToString();
             if (DEBUG) UniLog.Log("* " + str);
 
-            byte realStatusByte;
+            byte actualEventType;
             if (e.StatusByte >= 128)
             {
                 if (DEBUG) UniLog.Log("* New event type");
-                runningStatus = e.StatusByte;
+                if (MidiEvent.FixedDataSize(e.StatusByte) == 0)
+                {
+                    runningStatus = e.StatusByte;
+                }
+                else
+                {
+                    runningStatus = e.EventType;
+                }
             }
             else
             {
                 if (DEBUG) UniLog.Log("* Is running status");
             }
 
-            realStatusByte = runningStatus;
+            actualEventType = runningStatus;
+            if (DEBUG) UniLog.Log($"* Actual event type: {string.Format("hex: {0:X02}", actualEventType)}, dec: {actualEventType}");
 
-            switch (realStatusByte)
+            switch (actualEventType)
             {
                 // System realtime
                 case MidiEvent.MidiClock:
@@ -296,7 +304,7 @@ public class MidiInputConnection
             // also buffer Program messages
             lock (_eventBuffer)
             {
-                _eventBuffer.Add(new BufferedMidiEvent(e, timestamp, realStatusByte));
+                _eventBuffer.Add(new BufferedMidiEvent(e, timestamp, actualEventType));
                 _bufferedEventsToHandle += 1;
             }
         }
