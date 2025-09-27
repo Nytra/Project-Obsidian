@@ -1,13 +1,10 @@
-﻿using Elements.Core;
-using FrooxEngine;
+﻿using System;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using Commons.Music.Midi;
-using Obsidian.Elements;
-using Obsidian;
-using System;
+using Elements.Core;
 using Elements.Data;
+using FrooxEngine;
+using Obsidian.Elements;
 
 namespace Obsidian.Components.Devices.MIDI;
 
@@ -25,7 +22,7 @@ public class MIDI_InputDevice : Component, IMidiInputListener
 
     private bool _lastIsConnected;
 
-    private MidiInputConnection Connection;
+    private MidiInputConnection _connection;
 
     private MIDI_Settings _settings => Settings.GetActiveSetting<MIDI_Settings>();
 
@@ -163,6 +160,7 @@ public class MIDI_InputDevice : Component, IMidiInputListener
         if (HandlingUser.Target == null)
         {
             MidiDeviceConnectionManager.UnregisterInputListener(this);
+            _connection = null;
             SetIsConnected(false);
             return;
         }
@@ -170,12 +168,14 @@ public class MIDI_InputDevice : Component, IMidiInputListener
         if (LocalUser != HandlingUser.Target)
         {
             MidiDeviceConnectionManager.UnregisterInputListener(this);
+            _connection = null;
             return;
         }
 
         if (!Enabled)
         {
             MidiDeviceConnectionManager.UnregisterInputListener(this);
+            _connection = null;
             SetIsConnected(false);
             return;
         }
@@ -187,22 +187,23 @@ public class MIDI_InputDevice : Component, IMidiInputListener
             {
                 UniLog.Log("Device connection not allowed.");
                 MidiDeviceConnectionManager.UnregisterInputListener(this);
+                _connection = null;
                 SetIsConnected(false);
                 return;
             }
 
-            if (Connection != null
-                && (Connection.Input.Connection == MidiPortConnectionState.Open || Connection.Input.Connection == MidiPortConnectionState.Pending))
+            if (_connection != null)
             {
                 if (MidiAccessManager.Default.Inputs.Any(inp => inp.Name == DeviceName.Value))
                 {
-                    UniLog.Log("Already connected. Connection state: " + Connection.Input.Connection.ToString());
+                    UniLog.Log("Already connected. Connection state: " + _connection.Input.Connection.ToString());
                     return;
                 }
                 else
                 {
-                    UniLog.Log("Device was removed after a conection.");
+                    UniLog.Log("Device was removed after a connection.");
                     MidiDeviceConnectionManager.UnregisterInputListener(this);
+                    _connection = null;
                     SetIsConnected(false);
                     return;
                 }
@@ -213,7 +214,7 @@ public class MIDI_InputDevice : Component, IMidiInputListener
             if (targetDevice != null)
             {
                 UniLog.Log("Found the target device.");
-                Connection = MidiDeviceConnectionManager.RegisterInputListener(this, targetDevice);
+                _connection = MidiDeviceConnectionManager.RegisterInputListener(this, targetDevice);
                 SetIsConnected(true);
                 UniLog.Log("Connected.");
             }
@@ -226,6 +227,7 @@ public class MIDI_InputDevice : Component, IMidiInputListener
         else
         {
             MidiDeviceConnectionManager.UnregisterInputListener(this);
+            _connection = null;
             SetIsConnected(false);
         }
     }

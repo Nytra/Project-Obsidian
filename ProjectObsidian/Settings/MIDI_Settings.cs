@@ -39,6 +39,13 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
 
         [SettingProperty(null, null, null, false, 0L, null, null)]
         [SyncMethod(typeof(Action), new string[] { })]
+        public void CopyName()
+        {
+            InputInterface.Clipboard.SetText(DeviceName.Value);
+        }
+
+        [SettingProperty(null, null, null, false, 0L, null, null)]
+        [SyncMethod(typeof(Action), new string[] { })]
         public void Remove()
         {
             this.FindNearestParent<SyncList<MIDI_Device>>().Remove(this);

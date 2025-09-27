@@ -62,6 +62,7 @@ public class PluginSettings : SettingComponent<PluginSettings>
         _localeData.Messages.Add("Settings.MIDI_Settings.AllowConnections", "Allow Connections");
         _localeData.Messages.Add("Settings.MIDI_Settings.DeviceFound", "Device Found");
         _localeData.Messages.Add("Settings.MIDI_Settings.Remove", "Remove");
+        _localeData.Messages.Add("Settings.MIDI_Settings.CopyName", "Copy Name");
 
         SettingsLocaleHelper.Update(_localeData);
     }
