@@ -6,6 +6,7 @@ using Commons.Music.Midi;
 using Elements.Core;
 using Elements.Data;
 using System.Runtime.InteropServices;
+using CoreMidi;
 
 namespace Obsidian.Elements;
 
@@ -28,31 +29,31 @@ public struct MyMidiEvent
 {
     public bool isRunningStatus;
     public byte actualEventType;
+    public byte statusByte;
     public byte dataByte1;
     public byte dataByte2;
-    public byte channel => (byte)(actualEventType & 0x0F);
+    public byte channel => (byte)(statusByte & 0x0F);
     public byte[] extraData;
     public int extraDataLength;
     public int extraDataOffset;
-    public MyMidiEvent(byte _actualEventType, byte _dataByte1, byte _dataByte2, bool _isRunningStatus)
+    public MyMidiEvent(byte _actualEventType, byte _statusByte, byte _dataByte1, byte _dataByte2, bool _isRunningStatus)
     {
         actualEventType = _actualEventType;
         isRunningStatus = _isRunningStatus;
         dataByte1 = _dataByte1;
         dataByte2 = _dataByte2;
+        statusByte = _statusByte;
     }
-    public MyMidiEvent(byte _actualEventType, byte _dataByte1, byte _dataByte2, byte[] _extraData, int _extraDataOffset, int _extraDataLength)
+    public MyMidiEvent(byte[] _extraData, int _extraDataOffset, int _extraDataLength)
     {
-        actualEventType = _actualEventType;
-        dataByte1 = _dataByte1;
-        dataByte2 = _dataByte2;
+        actualEventType = MidiEvent.SysEx1;
         extraData = _extraData;
         extraDataOffset = _extraDataOffset;
         extraDataLength = _extraDataLength;
     }
     public override string ToString()
     {
-        object[] obj = new object[4] { actualEventType, dataByte1, dataByte2, null };
+        object[] obj = new object[4] { statusByte, dataByte1, dataByte2, null };
         object obj2;
         if (extraData == null)
         {
@@ -142,7 +143,7 @@ public class MidiInputConnection
     private bool IsCCFineMessage()
     {
         if (_eventBuffer.Count < 2) return false;
-        if (_eventBuffer[0].evt.actualEventType == MidiEvent.CC && _eventBuffer[1].evt.actualEventType == MidiEvent.CC
+        if (_eventBuffer[0].evt.statusByte == MidiEvent.CC && _eventBuffer[1].evt.actualEventType == MidiEvent.CC
             && _eventBuffer[0].evt.dataByte1 == _eventBuffer[1].evt.dataByte1 - 32)
         {
             return true;
@@ -216,6 +217,7 @@ public class MidiInputConnection
                     if (DEBUG) UniLog.Log("UnhandledEvent: TuneRequest");
                     break;
                 default:
+                    // This should never happen
                     if (DEBUG) UniLog.Log($"Unrecognized event type! {_eventBuffer[0].evt.actualEventType}");
                     break;
             }
@@ -228,7 +230,7 @@ public class MidiInputConnection
     {
         int i = index;
         int end = index + size;
-        byte status = runningStatus;
+        byte actualEventType = runningStatus;
         while (i < end)
         {
             if (bytes[i] >= 128)
@@ -236,39 +238,39 @@ public class MidiInputConnection
                 // End of running status
                 if (MidiEvent.FixedDataSize(bytes[i]) == 0)
                 {
-                    status = bytes[i];
+                    actualEventType = bytes[i];
                 }
                 else
                 {
                     byte b = bytes[i];
                     if (b == MidiEvent.SysEx1 || b == MidiEvent.SysEx2 || b == MidiEvent.Meta)
-                        status = b;
+                        actualEventType = b;
                     else
-                        status = (byte)(b & 0xF0);
+                        actualEventType = (byte)(b & 0xF0); 
                 }
-                if (status == 240)
+                if (actualEventType == MidiEvent.SysEx1)
                 {
-                    yield return new MyMidiEvent(240, 0, 0, bytes, index, size);
+                    yield return new MyMidiEvent(bytes, index, size);
                     i += size;
                     continue;
                 }
-                var z = MidiEvent.FixedDataSize(status);
+                var z = MidiEvent.FixedDataSize(actualEventType);
                 if (end < i + z)
                 {
-                    throw new Exception($"Received data was incomplete to build MIDI non-running status message for '{status:X}' status.");
+                    throw new Exception($"Received data was incomplete to build MIDI non-running status message for '{actualEventType:X}' status.");
                 }
-                yield return new MyMidiEvent(status, (byte)((z > 0) ? bytes[i + 1] : 0), (byte)((z > 1) ? bytes[i + 2] : 0), false);
+                yield return new MyMidiEvent(actualEventType, bytes[i], (byte)((z > 0) ? bytes[i + 1] : 0), (byte)((z > 1) ? bytes[i + 2] : 0), false);
                 i += z + 1;
             }
             else
             {
                 // Running status
-                var z = MidiEvent.FixedDataSize(status);
+                var z = MidiEvent.FixedDataSize(actualEventType);
                 if (end < i + z)
                 {
-                    throw new Exception($"Received data was incomplete to build MIDI running status message for '{status:X}' status.");
+                    throw new Exception($"Received data was incomplete to build MIDI running status message for '{actualEventType:X}' status.");
                 }
-                yield return new MyMidiEvent(status, bytes[i], (byte)((z > 1) ? bytes[i + 1] : 0), true);
+                yield return new MyMidiEvent(actualEventType, actualEventType, bytes[i], (byte)((z > 1) ? bytes[i + 1] : 0), true);
                 i += z;
             }
         }
@@ -280,12 +282,12 @@ public class MidiInputConnection
         if (DEBUG) UniLog.Log($"* Received {args.Length} bytes");
         if (DEBUG) UniLog.Log($"* Start: {args.Start}");
 
-        if (DEBUG) UniLog.Log($"* {string.Join(",", args.Data.Skip(args.Start).Take(args.Length).Select(b => string.Format("{0:X}", b)))}");
+        if (DEBUG) UniLog.Log($"* Raw bytes: {string.Join(",", args.Data.Skip(args.Start).Take(args.Length).Select(b => string.Format("{0:X}", b)))}");
 
         UniLog.FlushEveryMessage = true;
 
         long timestamp = args.Timestamp;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) // Timestamp is always zero on Linux
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) // Timestamp is always zero on Linux with the Alsa Midi API
         {
             timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         }
