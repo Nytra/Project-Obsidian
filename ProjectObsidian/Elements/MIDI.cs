@@ -74,7 +74,7 @@ public class MidiInputConnection
 
     private int _bufferedMessagesToHandle = 0;
 
-    private const bool DEBUG = false;
+    private const bool DEBUG = true;
 
     public void Initialize()
     {
@@ -193,7 +193,12 @@ public class MidiInputConnection
         if (DEBUG) UniLog.Log($"* Received {args.Length} bytes");
         if (DEBUG) UniLog.Log($"* Timestamp: {args.Timestamp}");
 
+        var msNow = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+        if (DEBUG) UniLog.Log($"* DateTime ms: {msNow}");
+
         var events = MidiEvent.Convert(args.Data, args.Start, args.Length);
+
+        if (DEBUG) UniLog.Log($"* Number of events: {events.Count()}");
 
         if (args.Length == 1)
         {
@@ -203,6 +208,7 @@ public class MidiInputConnection
             {
                 var str = e.ToString();
                 if (DEBUG) UniLog.Log("* " + str);
+                if (DEBUG) UniLog.Log("* Status byte: " + e.StatusByte.ToString());
                 switch (e.StatusByte)
                 {
                     case MidiEvent.MidiClock:
@@ -279,14 +285,14 @@ public class MidiInputConnection
 
             // buffer CC messages because consecutive ones may need to be combined
             // also buffer Program messages
-            _eventBuffer.Add(new TimestampedMidiEvent(e, args.Timestamp));
+            _eventBuffer.Add(new TimestampedMidiEvent(e, msNow));
             _bufferedMessagesToHandle += 1;
         }
 
-        if (events.Count() > 0 && args.Timestamp - _lastMessageBufferStartTime > MESSAGE_BUFFER_TIME_MILLISECONDS)
+        if (events.Count() > 0 && msNow - _lastMessageBufferStartTime > MESSAGE_BUFFER_TIME_MILLISECONDS)
         {
-            _lastMessageBufferStartTime = args.Timestamp;
-            if (DEBUG) UniLog.Log("* New message batch created: " + args.Timestamp.ToString());
+            _lastMessageBufferStartTime = msNow;
+            if (DEBUG) UniLog.Log("* New message batch created: " + msNow.ToString());
             await Task.Delay((int)MESSAGE_BUFFER_TIME_MILLISECONDS);
             FlushMessageBuffer();
         }
