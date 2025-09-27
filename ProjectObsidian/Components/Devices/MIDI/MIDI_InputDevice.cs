@@ -321,6 +321,8 @@ public class MIDI_InputDevice : Component
         _bufferedMessagesToHandle = 0;
     }
 
+    private byte _lastStatusByte;
+
     private async void OnMessageReceived(object sender, MidiReceivedEventArgs args)
     {
         if (DEBUG) UniLog.Log($"*** New midi message");
@@ -330,6 +332,8 @@ public class MIDI_InputDevice : Component
         if (DEBUG) UniLog.Log($"* DateTime ms: {msNow}");
 
         var events = MidiEvent.Convert(args.Data, args.Start, args.Length);
+
+        if (DEBUG) UniLog.Log($"* Number of events: {events.Count()}");
 
         if (args.Length == 1)
         {
@@ -380,6 +384,7 @@ public class MIDI_InputDevice : Component
         {
             var str = e.ToString();
             if (DEBUG) UniLog.Log("* " + str);
+            if (DEBUG) UniLog.Log("* Status byte: " + e.StatusByte.ToString());
 
             switch (e.EventType)
             {
