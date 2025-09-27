@@ -15,21 +15,59 @@ namespace Obsidian.Components.Tools;
 [Category("Obsidian/Tools")]
 public class MeshEditTool : Tool
 {
-    protected readonly DriveRef<OverlayFresnelMaterial> _material;
-    protected readonly SyncRef<EditableMesh> _currentEditableMesh;
+    protected readonly DriveRef<PBS_Metallic> _material;
+    protected readonly DestroyRelayRef<EditableMesh> _currentEditableMesh;
+    protected readonly SyncRef<TextRenderer> _label;
 
     protected override void OnAttach()
     {
         base.OnAttach();
+
+        Slot tip = base.Slot.AddSlot("TipReference");
+        tip.LocalPosition = float3.Forward * 0.075f;
+        TipReference.Target = tip;
+
         Slot visual = base.Slot.AddSlot("Visual");
         visual.AttachComponent<SphereCollider>().Radius.Value = 0.02f;
         visual.LocalRotation = floatQ.Euler(90f, 0f, 0f);
         visual.LocalPosition += float3.Forward * 0.05f;
-        _material.Target = visual.AttachComponent<OverlayFresnelMaterial>();
+        _material.Target = visual.AttachComponent<PBS_Metallic>();
         ConeMesh coneMesh = visual.AttachMesh<ConeMesh>(_material.Target);
         coneMesh.RadiusTop.Value = 0.0025f;
         coneMesh.RadiusBase.Value = 0.015f;
         coneMesh.Height.Value = 0.05f;
+
+        Slot labelPivot = Slot.AddSlot("Label Pivot");
+        labelPivot.LocalRotation = floatQ.Euler(0f, 0f, 90f);
+
+        Slot slot2 = labelPivot.AddSlot("Label");
+        TextRenderer label = slot2.AttachComponent<TextRenderer>();
+        TextUnlitMaterial fontMaterial = slot2.AttachComponent<TextUnlitMaterial>();
+        fontMaterial.FaceDilate.Value = 0.2f;
+        fontMaterial.OutlineThickness.Value = 0.2f;
+        fontMaterial.OutlineColor.Value = colorX.Black;
+        label.Size.Value *= 0.15f;
+        label.Material.Target = fontMaterial;
+        slot2.LocalPosition += float3.Up * 0.05f;
+        label.Text.Value = "---";
+        _label.Target = label;
+    }
+
+    protected override void OnChanges()
+    {
+        base.OnChanges();
+        if (_currentEditableMesh.Target != null)
+        {
+            _label.Target.Text.Value = $"Editing: {_currentEditableMesh.Target.Slot.Name}";
+            _label.Target.Color.Value = colorX.White;
+            _material.Target.AlbedoColor.Value = colorX.Green;
+        }
+        else
+        {
+            _label.Target.Text.Value = $"---";
+            _label.Target.Color.Value = colorX.White;
+            _material.Target.AlbedoColor.Value = colorX.White;
+        }
     }
 
     public override void GenerateMenuItems(InteractionHandler tool, ContextMenu menu)
@@ -72,6 +110,9 @@ public class MeshEditTool : Tool
     {
         if (_currentEditableMesh.Target != null)
         {
+            _label.Target.Text.Value = "Already editing!";
+            _label.Target.Color.Value = colorX.Orange;
+            RunInSeconds(2.5f, MarkChangeDirty);
             return;
         }
 
@@ -80,6 +121,7 @@ public class MeshEditTool : Tool
         {
             RaycastHit hit = potentialHit.Value;
             Slot targetSlot = hit.Collider.Slot;
+
             if (targetSlot.GetComponent<MeshRenderer>() is MeshRenderer meshRenderer)
             {
                 if (targetSlot.GetComponent<EditableMeshControlPoint>() is EditableMeshControlPoint controlPoint)
