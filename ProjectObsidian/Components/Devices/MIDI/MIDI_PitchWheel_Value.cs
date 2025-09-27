@@ -8,10 +8,12 @@ using Commons.Music.Midi.RtMidi;
 using CoreMidi;
 using Commons.Music.Midi;
 using Obsidian.Elements;
+using Elements.Data;
 
-namespace Components.Devices.MIDI;
+namespace Obsidian.Components.Devices.MIDI;
 
 [Category(new string[] { "Obsidian/Devices/MIDI" })]
+[OldTypeName("Components.Devices.MIDI.MIDI_PitchWheel_Value")]
 public class MIDI_PitchWheel_Value : Component
 {
     public readonly SyncRef<MIDI_InputDevice> InputDevice;
@@ -47,7 +49,7 @@ public class MIDI_PitchWheel_Value : Component
         }
     }
 
-    private void OnPitchWheel(MIDI_InputDevice device, MIDI_PitchWheelEventData eventData)
+    private void OnPitchWheel(IMidiInputListener sender, MIDI_PitchWheelEventData eventData)
     {
         RunSynchronously(() =>
         {

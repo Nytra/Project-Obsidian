@@ -8,10 +8,12 @@ using Commons.Music.Midi.RtMidi;
 using CoreMidi;
 using Commons.Music.Midi;
 using Obsidian.Elements;
+using Elements.Data;
 
-namespace Components.Devices.MIDI;
+namespace Obsidian.Components.Devices.MIDI;
 
 [Category(new string[] { "Obsidian/Devices/MIDI" })]
+[OldTypeName("Components.Devices.MIDI.MIDI_CC_Value")]
 public class MIDI_CC_Value : Component
 {
     public readonly SyncRef<MIDI_InputDevice> InputDevice;
@@ -51,7 +53,7 @@ public class MIDI_CC_Value : Component
         }
     }
 
-    private void OnControl(MIDI_InputDevice device, MIDI_CC_EventData eventData)
+    private void OnControl(IMidiInputListener sender, MIDI_CC_EventData eventData)
     {
         RunSynchronously(() =>
         {

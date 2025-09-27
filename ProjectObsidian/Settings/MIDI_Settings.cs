@@ -5,6 +5,7 @@ using FrooxEngine;
 using Elements.Core;
 using Elements.Assets;
 using Commons.Music.Midi;
+using System.Threading.Tasks;
 
 namespace Obsidian;
 
@@ -18,7 +19,9 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
         [SettingIndicatorProperty(null, null, null, null, false, 0L)]
         public readonly Sync<string> DeviceName;
 
-        [NonPersistent]
+        // Can't use the NonPersistent attribute until this is fixed: https://github.com/Yellow-Dog-Man/Resonite-Issues/issues/5248
+        // This could be worked around by using a publicizer / IgnoresAccessChecksTo attribute, but it isn't a huge deal 
+        //[NonPersistent]
         [SettingIndicatorProperty(null, null, null, null, false, 0L)]
         public readonly Sync<bool> DeviceFound;
 
@@ -47,8 +50,6 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
 
     [SettingSubcategoryList("DeviceToItem", null, null, null, null, null)]
     public readonly SyncList<MIDI_Device> OutputDevices;
-
-    private LocaleData _localeData;
 
     private DataFeedItem DeviceToItem(ISyncMember item)
     {
@@ -83,49 +84,14 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
 
     protected override void OnStart()
     {
-        base.OnStart();
-        _localeData = new LocaleData();
-        _localeData.LocaleCode = "en";
-        _localeData.Authors = new List<string>() { "Nytra" };
-        _localeData.Messages = new Dictionary<string, string>();
-        _localeData.Messages.Add("Settings.Category.Obsidian", "Obsidian");
-        _localeData.Messages.Add("Settings.MIDI_Settings", "MIDI Settings");
-        _localeData.Messages.Add("Settings.MIDI_Settings.RefreshDeviceLists", "Refresh Devices");
-        _localeData.Messages.Add("Settings.MIDI_Settings.InputDevices", "Input Devices");
-        _localeData.Messages.Add("Settings.MIDI_Settings.OutputDevices", "Output Devices");
-
-        _localeData.Messages.Add("Settings.MIDI_Settings.DeviceName", "Device Name");
-        _localeData.Messages.Add("Settings.MIDI_Settings.OutputDevices.Breadcrumb", "MIDI Output Devices");
-        _localeData.Messages.Add("Settings.MIDI_Settings.InputDevices.Breadcrumb", "MIDI Input Devices");
-        _localeData.Messages.Add("Settings.MIDI_Settings.AllowConnections", "Allow Connections");
-        _localeData.Messages.Add("Settings.MIDI_Settings.DeviceFound", "Device Found");
-        _localeData.Messages.Add("Settings.MIDI_Settings.Remove", "Remove");
-
-        // Sometimes the locale is null in here, so wait a bit I guess
-
-        RunInUpdates(15, () =>
-        {
-            UpdateLocale();
-            Settings.RegisterValueChanges<LocaleSettings>(UpdateLocale);
-            RefreshDeviceLists();
-        });
-    }
-
-    protected override void OnDispose()
-    {
-        base.OnDispose();
-        Settings.UnregisterValueChanges<LocaleSettings>(UpdateLocale);
-    }
-
-    private void UpdateLocale(LocaleSettings settings = null)
-    {
-        this.GetCoreLocale()?.Asset?.Data.LoadDataAdditively(_localeData);
+        RefreshDeviceLists();
     }
 
     [SettingProperty(null, null, null, false, 0L, null, null)]
     [SyncMethod(typeof(Action), new string[] { })]
     public void RefreshDeviceLists()
     {
+        UniLog.Log("Refreshing MIDI device lists!");
         foreach(var device in InputDevices.Concat(OutputDevices)) 
         {
             device.DeviceFound.Value = false;

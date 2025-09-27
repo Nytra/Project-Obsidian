@@ -1,6 +1,6 @@
 # Project Obsidian
 
-Project Obsidian is a Resonite plugin that introduces added Protoflux nodes and features. It serves as an experimental space for testing concepts and expanding the boundaries of the virtual reality platform. The primary goal of Project Obsidian is to realize ideas that the base game does not yet feature.
+Project Obsidian is a Resonite plugin that introduces new components, Protoflux nodes and features. It serves as an experimental space for testing concepts and expanding the boundaries of the virtual reality platform. The primary goal of Project Obsidian is to realize ideas that the base game does not yet feature.
 
 Key features and benefits of Project Obsidian include:
 
@@ -41,21 +41,280 @@ By backing us on Patreon, you're actively participating in the plugin's enhancem
 
 **Important:** Project Obsidian is a plugin, not a mod. Ensure you follow the correct installation steps.
 
-1. Download the `ProjectObsidian.dll` file from the [Releases tab](https://github.com/Xlinka/Project-Obsidian/releases).
-2. Place the downloaded `ProjectObsidian.dll` file in the `Libraries` folder in your Resonite directory.
-3. Add the `-LoadAssembly` launch argument followed by the plugin's file path: `-LoadAssembly Libraries/ProjectObsidian.dll`.
+1. Download the zip file from the [Releases tab](https://github.com/Xlinka/Project-Obsidian/releases).
+2. Extract the downloaded files to the `Libraries` folder in your Resonite directory.
+3. Add the `-LoadAssembly` launch argument followed by the plugin's file path: `-LoadAssembly Libraries/Project-Obsidian.dll`.
 
-Upon doing this, start Resonite. Project Obsidian should be operational. For further details, refer to your logs.
+Upon doing this, start Resonite. Navigate to the Obsidian category in your dash settings and ensure the Plugin Loaded setting is True. For further details, refer to your logs.
 
 For a comprehensive guide, please refer to our [installation wiki](https://github.com/Xlinka/Project-Obsidian/wiki/Installation).
 
 ## Features
-The detailed feature list is available in the [wiki](https://github.com/Xlinka/Project-Obsidian/wiki/Protoflux-Nodes).
+The detailed feature list is available in the [wiki](https://github.com/Xlinka/Project-Obsidian/wiki/ProtoFlux-Nodes).
 
 
-# 설치방법
+## Project Obsidian プラグインのインストール
 
-중요: 프로젝트 오브시디안은 모드가 아닌 플러그인 입니다. 설치 방법이 다르므로 주의하십시오.
-먼저 Releases 탭에서 ProjectObsidian.dll 파일을 다운로드 받아 Resonite 설치 경로의 `Libraries` 폴더에 넣어주세요.
-네오스에서 플러그인을 로드하도록 `-LoadAssembly` 실행 옵션을 추가하십시오.
-이렇게 설정하면 Resonite를 시작할 때 Project Obsidian 플러그인이 로드되어야 합니다.
+**重要:** Project Obsidian はModではなくプラグインです。正しい手順に従ってインストールしてください。
+
+1. [Releasesタブ](https://github.com/Xlinka/Project-Obsidian/releases)からzipファイルをダウンロードします。  
+2. ダウンロードしたファイルをResoniteディレクトリ内の `Libraries` フォルダに解凍します。  
+3. 起動時に `-LoadAssembly` 起動引数とともにプラグインのファイルパスを追加します: `-LoadAssembly Libraries/Project-Obsidian.dll`
+
+以上が完了したらResoniteを起動してください。ダッシュ設定のObsidianカテゴリに移動し、*Plugin Loaded* の設定がTrueになっていることを確認してください。詳しくはログを参照してください。
+
+
+## Project Obsidian 플러그인 설치
+
+**중요:** Project Obsidian은 모드가 아닌 플러그인입니다. 올바른 설치 절차를 반드시 따라주세요.
+
+1. [Releases 탭](https://github.com/Xlinka/Project-Obsidian/releases)에서 zip 파일을 다운로드합니다.  
+2. 다운로드한 파일을 Resonite 디렉토리 내 `Libraries` 폴더에 압축 해제합니다.  
+3. 실행 시 `-LoadAssembly` 실행 인자와 함께 플러그인의 파일 경로를 추가합니다: `-LoadAssembly Libraries/Project-Obsidian.dll`
+
+이 작업을 완료한 후 Resonite를 시작하세요. 대시 설정에서 Obsidian 카테고리로 이동하여 *Plugin Loaded* 설정이 True로 되어 있는지 확인하세요. 자세한 내용은 로그 파일을 참조하세요.
+
+
+## Libraries used
+
+https://github.com/ValveSoftware/openvr
+
+https://github.com/ValveSoftware/steamvr_unity_plugin
+
+https://github.com/Nytra/managed-midi
+
+https://github.com/Nytra/alsa-sharp
+
+## Additional info
+
+The following code files contain some algorithms produced with the assistance of AI LLMs:
+
+https://github.com/Custom-Extension-Works/Project-Obsidian/blob/main/ProjectObsidian/Components/Mesh/MetaballShape.cs
+
+https://github.com/Custom-Extension-Works/Project-Obsidian/blob/main/ProjectObsidian/Elements/Audio.cs
+
+
+# Project Obsidian Nodes and Components
+
+## Components
+
+### Audio
+
+- `BandPassFilter`
+- `ButterworthFilter`
+- `EMA_IIR_SmoothSignal`
+- `PhaseModulator`
+- `RingModulator`
+- `SineShapedRingModulator`
+
+### Common UI
+
+- `Button Interactions/ButtonAttachComponent`
+
+### Devices
+
+- `MIDI/MIDI_CC_Value`
+- `MIDI/MIDI_InputDevice`
+- `MIDI/MIDI_PitchWheel_Value`
+
+### Mesh
+
+- `EditableMesh`
+- `EditableMeshControlPoint`
+- `MengerSponge`
+- `MengerSpongeMesh`
+- `MetaballMesh`
+- `MetaballPoint`
+- `MetaballShape`
+- `Planet`
+- `PlanetMesh`
+- `SierpinskiPyramid`
+- `SierpinskiPyramidMesh`
+
+### Radiant UI
+
+- `Data Feeds/Feeds/ComponentData`
+- `Data Feeds/Feeds/ComponentDataFeedItem`
+- `Data Feeds/Feeds/ComponentDataResult`
+- `Data Feeds/Feeds/ComponentsDataFeed`
+- `Data Feeds/Feeds/ComponentsDataFeedData`
+- `Data Feeds/Interfaces/ComponentDataItemInterface`
+- `Data Feeds/Interfaces/TypeFeedItem`
+- `Data Feeds/Interfaces/TypeItemInterface`
+
+### Tools
+
+- `MeshEditTool`
+
+### Transform
+
+- `Drivers/MultiValueArithmeticDriver`
+
+### Users
+
+- `BoundingBoxUserTracker`
+- `ImuInfo`
+
+### Utility
+
+- `IsValidGenericTypeDriver`
+- `StringToTypeDriver`
+
+### Wizards
+
+- `LightSourcesWizard`
+- `MeshColliderManagementWizard`
+
+## User Components
+
+### General
+
+- `ViveTrackerProxy`
+
+## ProtoFlux Nodes
+
+### Actions
+
+- `TweenPosition`
+- `TweenRotation`
+- `TweenScale`
+
+### Audio
+
+- `AudioAdder`
+- `AudioClamp`
+- `AudioDelay`
+- `AudioMultiply`
+- `AudioSourceInfo`
+- `AudioSubtractor`
+- `BandPassFilterNode`
+- `ButterworthFilterNode`
+- `ChannelSplitter`
+- `EMA_IIR_SmoothSignalNode`
+- `FIR_Filter`
+- `IsPaused`
+- `IsStopped`
+- `LevelMonitor`
+- `OneSampleDelay`
+- `PhaseModulatorNode`
+- `QuadCombiner`
+- `Reverb`
+- `RingModulatorNode`
+- `SawtoothGenerator`
+- `SineGenerator`
+- `SineShapedRingModulatorNode`
+- `Speaker`
+- `SquareGenerator`
+- `StereoCombiner`
+- `Surround51_Combiner`
+- `TriangleGenerator`
+
+### Devices
+
+- `ImuDataNode`
+- `MIDI/MIDI_CC_Event`
+- `MIDI/MIDI_ChannelAftertouchEvent`
+- `MIDI/MIDI_NoteEvents`
+- `MIDI/MIDI_PitchWheelEvent`
+- `MIDI/MIDI_PolyphonicAftertouchEvent`
+- `MIDI/MIDI_ProgramEvent`
+- `MIDI/MIDI_SystemRealtimeEvents`
+- `ViveTrackerBattery`
+
+### Flow
+
+- `AsyncWait`
+- `AsyncWhileWithIteration`
+- `Time/Local Stopwatch`
+- `WhileWithIteration`
+
+### General
+
+- `NodeExtensions`
+- `RandomXExtensions`
+
+### Interaction
+
+- `FindGrabbableFromSlot`
+
+### JSON
+
+- `JsonAddObjectToObjectNode`
+- `JsonAddValueToObjectNode`
+- `JsonAppendObjectToArrayNode`
+- `JsonAppendValueToArrayNode`
+- `JsonCountArrayChildrenNode`
+- `JsonCountObjectChildrenNode`
+- `JsonEmptyArrayNode`
+- `JsonEmptyObjectNode`
+- `JsonGetObjectFromArrayNode`
+- `JsonGetObjectFromObjectNode`
+- `JsonGetValueFromArrayNode`
+- `JsonGetValueFromObjectNode`
+- `JsonInsertObjectToArrayNode`
+- `JsonInsertValueToArrayNode`
+- `JsonParseStringArrayNode`
+- `JsonParseStringObjectNode`
+- `JsonParseStringTokenNode`
+- `JsonQuickGetObjectFromObjectNode`
+- `JsonQuickGetValueFromObjectNode`
+- `JsonRemoveFromArrayNode`
+- `JsonRemoveFromObjectNode`
+- `JsonSelectTokenNode`
+- `JsonSelectTokensNode`
+- `JsonToStringNode`
+- `JsonTokenToArrayNode`
+- `JsonTokenToObjectNode`
+
+### Math
+
+- `ADSR_Envelope`
+- `Constants/EpsilonDouble`
+- `Constants/EpsilonFloat`
+- `EulersTotientFunctionNode`
+- `FibonacciNode`
+- `FrequencyQuantize`
+- `IsPrimeNumberNode`
+- `MIDI_NoteFrequency`
+- `Physics/CentripetalForceCalculationNode`
+- `Physics/DragCalculationNode`
+- `Physics/KinecticFrictionNode`
+- `Physics/RefractCalculationNode`
+- `Random/RandomBool2`
+- `Random/RandomBool3`
+- `Random/RandomBool4`
+- `Random/RandomCharacter`
+- `Random/RandomDouble`
+- `Random/RandomEulerAngles`
+- `Random/RandomFloatQ`
+- `Random/RandomInt2`
+
+### Networking
+
+- `AsyncHttpRequestNode`
+
+### Strings
+
+- `CountSubstring`
+- `DecodeBase64Node`
+- `DecodeMorseNode`
+- `EncodeBase64Node`
+- `EncodeMD5`
+- `EncodeMorse`
+- `EncodeSHA256`
+- `HMAC`
+- `HammingDistanceNode`
+- `HammingDistanceNonNullableNode`
+- `ReplaceIndexRangeNode`
+
+### Users
+
+- `Avatar/AvatarRootSlot`
+- `Status/IsUserEyeTracking`
+- `Status/IsUserInNoclipNode`
+- `Status/IsUserInSeatedMode`
+- `UserFromUserRef`
+
+### Utility
+
+- `WriteToLogNode`
