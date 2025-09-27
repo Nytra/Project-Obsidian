@@ -331,7 +331,10 @@ public static class MidiDeviceConnectionManager
     {
         UniLog.Log("Releasing input device...");
         await Task.WhenAny(conn.Input.CloseAsync(), Task.Delay(5000));
-        UniLog.Log("Device released.");
+        if (conn.Input.Connection == MidiPortConnectionState.Closed)
+            UniLog.Log("Device released.");
+        else
+            UniLog.Log("Timed out. Device may not be released.");
         _deviceConnectionMap.Remove(conn.Input.Details.Name);
         conn.Initialize();
         Pool<MidiInputConnection>.ReturnCleaned(ref conn);
