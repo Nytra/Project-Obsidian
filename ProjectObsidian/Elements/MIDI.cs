@@ -27,14 +27,7 @@ public struct TimestampedMyMidiEvent
 public struct MyMidiEvent
 {
     public bool isRunningStatus; // this means that the message came in WITHOUT a status byte, so it should use the last one that was received
-    public byte actualEventType
-    {
-        get
-        {
-            if (MidiEvent.FixedDataSize(statusByte) == 0) return statusByte;
-            return (byte)(statusByte & 0xF0);
-        }
-    }
+    public byte actualEventType => ActualEventType(statusByte);
     public byte statusByte; // could be the running status byte if this is a running status message
     public byte dataByte1;
     public byte dataByte2;
@@ -68,6 +61,11 @@ public struct MyMidiEvent
             obj2 = "[data:" + extraDataLength + "]";
         }
         return $"(Type:{actualEventType:X02} Channel:{channelIndex:X02}) {statusByte:X02}:{dataByte1:X02}:{dataByte2:X02}{obj2}";
+    }
+    public static byte ActualEventType(byte _statusByte)
+    {
+        if (MidiEvent.FixedDataSize(_statusByte) == 0) return _statusByte;
+        return (byte)(_statusByte & 0xF0);
     }
 }
 
@@ -299,7 +297,7 @@ public class MidiInputConnection
             if (!e.isRunningStatus)
             {
                 if (DEBUG) UniLog.Log("* New event type");
-                runningStatus = e.actualEventType;
+                runningStatus = e.statusByte;
             }
             else
             {
@@ -307,7 +305,7 @@ public class MidiInputConnection
             }
 
             bool shouldBuffer = false;
-            switch (runningStatus)
+            switch (MyMidiEvent.ActualEventType(runningStatus))
             {
                 // System realtime
                 case MidiEvent.MidiClock:
