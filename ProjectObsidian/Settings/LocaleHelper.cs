@@ -10,10 +10,13 @@ public static class SettingsLocaleHelper
     private static StaticLocaleProvider localeProvider;
     private static string lastOverrideLocale;
     private const string overrideLocaleString = "somethingRandomJustToMakeItChange";
-    public static void Update(LocaleData _localeData)
+    internal static LocaleData _lastLocaleData;
+    public static void Update(LocaleData _localeData=null)
     {
-        UpdateDelayed(_localeData);
-        Settings.RegisterValueChanges<LocaleSettings>(localeSettings => UpdateDelayed(_localeData));
+        var data = _localeData ?? _lastLocaleData;
+        _lastLocaleData = data;
+        UpdateDelayed(data);
+        Settings.RegisterValueChanges<LocaleSettings>(localeSettings => UpdateDelayed(data));
         
     }
     private static void UpdateDelayed(LocaleData _localeData)

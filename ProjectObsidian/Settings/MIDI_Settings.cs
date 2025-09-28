@@ -60,7 +60,8 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
 
     private DataFeedItem DeviceToItem(ISyncMember item)
     {
-        RefreshDeviceLists();
+        RunSynchronously(RefreshDeviceLists);
+        RunSynchronously(() => SettingsLocaleHelper.Update());
         MIDI_Device device = (MIDI_Device)item;
         DataFeedGroup dataFeedGroup = new DataFeedGroup();
         List<DataFeedItem> list = new List<DataFeedItem>();
@@ -99,6 +100,7 @@ public class MIDI_Settings : SettingComponent<MIDI_Settings>
     [SyncMethod(typeof(Action), new string[] { })]
     public void RefreshDeviceLists()
     {
+        RunSynchronously(() => SettingsLocaleHelper.Update());
         UniLog.Log("Refreshing MIDI device lists!");
         foreach(var device in InputDevices.Concat(OutputDevices)) 
         {
