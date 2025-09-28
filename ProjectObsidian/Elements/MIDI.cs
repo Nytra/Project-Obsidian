@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Commons.Music.Midi;
 using Elements.Core;
 using Elements.Data;
-using System.Runtime.InteropServices;
-using CoreMidi;
 
 namespace Obsidian.Elements;
 
@@ -39,13 +38,12 @@ public struct MyMidiEvent
     public byte statusByte;
     public byte dataByte1;
     public byte dataByte2;
-    public byte channel => (byte)(statusByte & 0x0F);
+    public byte channelIndex => (byte)(statusByte & 0x0F);
     public byte[] extraData;
     public int extraDataLength;
     public int extraDataOffset;
     public MyMidiEvent(byte _statusByte, byte _dataByte1, byte _dataByte2, bool _isRunningStatus)
     {
-        //actualEventType = _actualEventType;
         isRunningStatus = _isRunningStatus;
         dataByte1 = _dataByte1;
         dataByte2 = _dataByte2;
@@ -53,14 +51,13 @@ public struct MyMidiEvent
     }
     public MyMidiEvent(byte[] _extraData, int _extraDataOffset, int _extraDataLength)
     {
-        //actualEventType = MidiEvent.SysEx1;
+        statusByte = MidiEvent.SysEx1;
         extraData = _extraData;
         extraDataOffset = _extraDataOffset;
         extraDataLength = _extraDataLength;
     }
     public override string ToString()
     {
-        object[] obj = new object[4] { statusByte, dataByte1, dataByte2, null };
         object obj2;
         if (extraData == null)
         {
@@ -70,9 +67,7 @@ public struct MyMidiEvent
         {
             obj2 = "[data:" + extraDataLength + "]";
         }
-
-        obj[3] = obj2;
-        return string.Format("{0:X02}:{1:X02}:{2:X02}{3}", obj);
+        return $"(Type:{actualEventType:X02} Channel:{channelIndex:X02}) {statusByte:X02}:{dataByte1:X02}:{dataByte2:X02}{obj2}";
     }
 }
 
@@ -150,7 +145,7 @@ public class MidiInputConnection
     private bool IsCCFineMessage()
     {
         if (_eventBuffer.Count < 2) return false;
-        if (_eventBuffer[0].evt.statusByte == MidiEvent.CC && _eventBuffer[1].evt.actualEventType == MidiEvent.CC
+        if (_eventBuffer[0].evt.actualEventType == MidiEvent.CC && _eventBuffer[1].evt.actualEventType == MidiEvent.CC
             && _eventBuffer[0].evt.dataByte1 == _eventBuffer[1].evt.dataByte1 - 32)
         {
             return true;
@@ -180,7 +175,7 @@ public class MidiInputConnection
                 if (DEBUG) UniLog.Log(e2.ToString());
                 var finalValue = CombineBytes(e2.evt.dataByte2, e1.evt.dataByte2);
                 if (DEBUG) UniLog.Log($"CC fine. Value: " + finalValue.ToString());
-                Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e1.evt.channel, e1.evt.dataByte1, finalValue, _coarse: false)));
+                Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e1.evt.channelIndex, e1.evt.dataByte1, finalValue, _coarse: false)));
                 _eventBuffer.RemoveRange(0, 2);
             }
 
@@ -192,13 +187,13 @@ public class MidiInputConnection
             {
                 case MidiEvent.CC:
                     if (DEBUG) UniLog.Log("CC");
-                    Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e.evt.channel, e.evt.dataByte1, e.evt.dataByte2, _coarse: true)));
+                    Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e.evt.channelIndex, e.evt.dataByte1, e.evt.dataByte2, _coarse: true)));
                     break;
 
                 // Program events are buffered because they can be sent after a CC fine message for Bank Select, one of my devices sends consecutively: CC (Bank Select) -> CC (Bank Select Lsb) -> Program for some buttons
                 case MidiEvent.Program:
                     if (DEBUG) UniLog.Log("Program");
-                    Listeners.ForEach(l => l.TriggerProgram(new MIDI_ProgramEventData(e.evt.channel, e.evt.dataByte1)));
+                    Listeners.ForEach(l => l.TriggerProgram(new MIDI_ProgramEventData(e.evt.channelIndex, e.evt.dataByte1)));
                     break;
 
                 // Unhandled events:
@@ -244,20 +239,10 @@ public class MidiInputConnection
             {
                 // End of running status
                 statusByte = bytes[i];
-                //if (MidiEvent.FixedDataSize(bytes[i]) == 0)
-                //{
-                //    actualEventType = bytes[i];
-                //}
-                //else
-                //{
-                //    byte b = bytes[i];
-                //    if (b == MidiEvent.SysEx1 || b == MidiEvent.SysEx2 || b == MidiEvent.Meta)
-                //        actualEventType = b;
-                //    else
-                //        actualEventType = (byte)(b & 0xF0); 
-                //}
                 if (statusByte == MidiEvent.SysEx1)
                 {
+                    // It should look for the EndSysEx value (247) in the rest of the bytes from this point
+                    // but we don't expose SysEx in game right now anyway so it doesn't really matter right now
                     yield return new MyMidiEvent(bytes, index, size);
                     i += size;
                     continue;
@@ -361,26 +346,26 @@ public class MidiInputConnection
                     if (e.dataByte2 == 0)
                     {
                         if (DEBUG) UniLog.Log("* Zero velocity, so it's actually a NoteOff");
-                        Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.channel, e.dataByte1, e.dataByte2)));
+                        Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.channelIndex, e.dataByte1, e.dataByte2)));
                         break;
                     }
-                    Listeners.ForEach(l => l.TriggerNoteOn(new MIDI_NoteEventData(e.channel, e.dataByte1, e.dataByte2)));
+                    Listeners.ForEach(l => l.TriggerNoteOn(new MIDI_NoteEventData(e.channelIndex, e.dataByte1, e.dataByte2)));
                     break;
                 case MidiEvent.NoteOff:
                     if (DEBUG) UniLog.Log("* NoteOff");
-                    Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.channel, e.dataByte1, e.dataByte2)));
+                    Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.channelIndex, e.dataByte1, e.dataByte2)));
                     break;
                 case MidiEvent.CAf:
                     if (DEBUG) UniLog.Log("* CAf");
-                    Listeners.ForEach(l => l.TriggerChannelAftertouch(new MIDI_ChannelAftertouchEventData(e.channel, e.dataByte1)));
+                    Listeners.ForEach(l => l.TriggerChannelAftertouch(new MIDI_ChannelAftertouchEventData(e.channelIndex, e.dataByte1)));
                     break;
                 case MidiEvent.Pitch:
                     if (DEBUG) UniLog.Log("* Pitch");
-                    Listeners.ForEach(l => l.TriggerPitchWheel(new MIDI_PitchWheelEventData(e.channel, CombineBytes(e.dataByte1, e.dataByte2))));
+                    Listeners.ForEach(l => l.TriggerPitchWheel(new MIDI_PitchWheelEventData(e.channelIndex, CombineBytes(e.dataByte1, e.dataByte2))));
                     break;
                 case MidiEvent.PAf:
                     if (DEBUG) UniLog.Log("* PAf");
-                    Listeners.ForEach(l => l.TriggerPolyphonicAftertouch(new MIDI_PolyphonicAftertouchEventData(e.channel, e.dataByte1, e.dataByte2)));
+                    Listeners.ForEach(l => l.TriggerPolyphonicAftertouch(new MIDI_PolyphonicAftertouchEventData(e.channelIndex, e.dataByte1, e.dataByte2)));
                     break;
                 default:
                     shouldBuffer = true;
