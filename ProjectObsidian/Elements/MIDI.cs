@@ -98,7 +98,7 @@ public class MidiInputConnection
     private bool IsCCFineMessage()
     {
         if (_eventBuffer.Count < 2) return false;
-        if (_eventBuffer[0].evt.EventType == MidiEvent.CC && _eventBuffer[1].evt.EventType == MidiEvent.CC
+        if (ActualEventType(_eventBuffer[0].evt.StatusByte) == MidiEvent.CC && ActualEventType(_eventBuffer[1].evt.StatusByte) == MidiEvent.CC
             && _eventBuffer[0].evt.Msb == _eventBuffer[1].evt.Msb - 32)
         {
             return true;
@@ -136,7 +136,7 @@ public class MidiInputConnection
 
             var e = _eventBuffer[0];
             if (DEBUG) UniLog.Log(e.ToString());
-            switch (_eventBuffer[0].evt.EventType)
+            switch (ActualEventType(_eventBuffer[0].evt.StatusByte))
             {
                 case MidiEvent.CC:
                     if (DEBUG) UniLog.Log("CC");
@@ -181,52 +181,14 @@ public class MidiInputConnection
         if (DEBUG) UniLog.Log("Finished flushing message buffer from start time: " + batchStartTime.ToString());
     }
 
-    //private IEnumerable<MyMidiEvent> ConvertWithRunningStatus(byte[] bytes, int index, int size)
-    //{
-    //    int i = index;
-    //    int end = index + size;
-    //    while (i < end)
-    //    {
-    //        if (bytes[i] >= 128)
-    //        {
-    //            // New status byte
-    //            if (DEBUG) UniLog.Log($"* New running status byte: {bytes[i]:X02}");
-    //            runningStatus = bytes[i];
-    //            if (runningStatus == MidiEvent.SysEx1)
-    //            {
-    //                if (DEBUG) UniLog.Log($"* is SysEx");
-    //                // It should look for the EndSysEx value (247) in the rest of the bytes from this point
-    //                // but we don't expose SysEx in game right now anyway so it doesn't really matter right now
-    //                yield return new MyMidiEvent(bytes, index, size);
-    //                i += size;
-    //                continue;
-    //            }
-    //            var z = MidiEvent.FixedDataSize(runningStatus);
-    //            //if (DEBUG) UniLog.Log($"* Fixed data size: {z}");
-    //            if (end < i + z)
-    //            {
-    //                throw new Exception($"Received data was incomplete to build MIDI non-running status message for '{runningStatus:X}' status.");
-    //            }
-    //            var evt = new MyMidiEvent(runningStatus, (byte)((z > 0) ? bytes[i + 1] : 0), (byte)((z > 1) ? bytes[i + 2] : 0));
-    //            yield return evt;
-    //            i += z + 1;
-    //        }
-    //        else
-    //        {
-    //            // Is using running status
-    //            if (DEBUG) UniLog.Log($"* Is running status: {runningStatus}");
-    //            var z = MidiEvent.FixedDataSize(runningStatus);
-    //            //if (DEBUG) UniLog.Log($"* Fixed data size: {z}");
-    //            if (end < i + z - 1)
-    //            {
-    //                throw new Exception($"Received data was incomplete to build MIDI running status message for '{runningStatus:X}' status.");
-    //            }
-    //            var evt = new MyMidiEvent(runningStatus, bytes[i], (byte)((z > 1) ? bytes[i + 1] : 0));
-    //            yield return evt;
-    //            i += z;
-    //        }
-    //    }
-    //}
+    private static byte ActualEventType(byte b)
+    {
+        if (MidiEvent.FixedDataSize(b) == 0)
+        {
+            return b;
+        }
+        return (byte)(b & 0xF0);
+    }
 
     public async void OnMessageReceived(object sender, MidiReceivedEventArgs args)
     {
@@ -249,7 +211,6 @@ public class MidiInputConnection
         var events = MidiEvent.Convert(args.Data, args.Start, args.Length);
 
         // DO NOT CALL events.Count() IT BREAKS THE RUNNING STATUS ON LINUX
-        //if (DEBUG) UniLog.Log($"* Number of converted events: {events.Count()}");
 
         foreach (var e in events)
         {
@@ -259,18 +220,8 @@ public class MidiInputConnection
             // Msb is dataByte1
             // Lsb is dataByte2
 
-            //if (e.isRunningStatus)
-            //{
-            //    if (DEBUG) UniLog.Log("* Is running status");
-            //}
-            //else
-            //{
-            //    if (DEBUG) UniLog.Log("* New event type");
-            //    //runningStatus = e.statusByte;
-            //}
-
             bool shouldBuffer = false;
-            switch (e.EventType)
+            switch (ActualEventType(e.StatusByte))
             {
                 // System realtime
                 case MidiEvent.MidiClock:
