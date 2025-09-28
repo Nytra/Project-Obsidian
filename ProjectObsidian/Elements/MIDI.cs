@@ -230,11 +230,8 @@ public class MidiInputConnection
     {
         int i = index;
         int end = index + size;
-        //if (DEBUG) UniLog.Log("* In convert method");
-        //byte statusByte = runningStatus;
         while (i < end)
         {
-            //if (DEBUG) UniLog.Log($"* i: {i}");
             if (bytes[i] >= 128)
             {
                 // New status byte
@@ -242,7 +239,7 @@ public class MidiInputConnection
                 runningStatus = bytes[i];
                 if (runningStatus == MidiEvent.SysEx1)
                 {
-                    //if (DEBUG) UniLog.Log($"* is SysEx");
+                    if (DEBUG) UniLog.Log($"* is SysEx");
                     // It should look for the EndSysEx value (247) in the rest of the bytes from this point
                     // but we don't expose SysEx in game right now anyway so it doesn't really matter right now
                     yield return new MyMidiEvent(bytes, index, size);
