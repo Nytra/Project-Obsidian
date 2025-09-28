@@ -28,7 +28,14 @@ public struct TimestampedMyMidiEvent
 public struct MyMidiEvent
 {
     public bool isRunningStatus;
-    public byte actualEventType;
+    public byte actualEventType
+    {
+        get
+        {
+            if (MidiEvent.FixedDataSize(statusByte) == 0) return statusByte;
+            return (byte)(statusByte & 0xF0);
+        }
+    }
     public byte statusByte;
     public byte dataByte1;
     public byte dataByte2;
@@ -36,9 +43,9 @@ public struct MyMidiEvent
     public byte[] extraData;
     public int extraDataLength;
     public int extraDataOffset;
-    public MyMidiEvent(byte _actualEventType, byte _statusByte, byte _dataByte1, byte _dataByte2, bool _isRunningStatus)
+    public MyMidiEvent(byte _statusByte, byte _dataByte1, byte _dataByte2, bool _isRunningStatus)
     {
-        actualEventType = _actualEventType;
+        //actualEventType = _actualEventType;
         isRunningStatus = _isRunningStatus;
         dataByte1 = _dataByte1;
         dataByte2 = _dataByte2;
@@ -46,7 +53,7 @@ public struct MyMidiEvent
     }
     public MyMidiEvent(byte[] _extraData, int _extraDataOffset, int _extraDataLength)
     {
-        actualEventType = MidiEvent.SysEx1;
+        //actualEventType = MidiEvent.SysEx1;
         extraData = _extraData;
         extraDataOffset = _extraDataOffset;
         extraDataLength = _extraDataLength;
@@ -230,47 +237,48 @@ public class MidiInputConnection
     {
         int i = index;
         int end = index + size;
-        byte actualEventType = runningStatus;
+        byte statusByte = runningStatus;
         while (i < end)
         {
             if (bytes[i] >= 128)
             {
                 // End of running status
-                if (MidiEvent.FixedDataSize(bytes[i]) == 0)
-                {
-                    actualEventType = bytes[i];
-                }
-                else
-                {
-                    byte b = bytes[i];
-                    if (b == MidiEvent.SysEx1 || b == MidiEvent.SysEx2 || b == MidiEvent.Meta)
-                        actualEventType = b;
-                    else
-                        actualEventType = (byte)(b & 0xF0); 
-                }
-                if (actualEventType == MidiEvent.SysEx1)
+                statusByte = bytes[i];
+                //if (MidiEvent.FixedDataSize(bytes[i]) == 0)
+                //{
+                //    actualEventType = bytes[i];
+                //}
+                //else
+                //{
+                //    byte b = bytes[i];
+                //    if (b == MidiEvent.SysEx1 || b == MidiEvent.SysEx2 || b == MidiEvent.Meta)
+                //        actualEventType = b;
+                //    else
+                //        actualEventType = (byte)(b & 0xF0); 
+                //}
+                if (statusByte == MidiEvent.SysEx1)
                 {
                     yield return new MyMidiEvent(bytes, index, size);
                     i += size;
                     continue;
                 }
-                var z = MidiEvent.FixedDataSize(actualEventType);
+                var z = MidiEvent.FixedDataSize(statusByte);
                 if (end < i + z)
                 {
-                    throw new Exception($"Received data was incomplete to build MIDI non-running status message for '{actualEventType:X}' status.");
+                    throw new Exception($"Received data was incomplete to build MIDI non-running status message for '{statusByte:X}' status.");
                 }
-                yield return new MyMidiEvent(actualEventType, bytes[i], (byte)((z > 0) ? bytes[i + 1] : 0), (byte)((z > 1) ? bytes[i + 2] : 0), false);
+                yield return new MyMidiEvent(statusByte, (byte)((z > 0) ? bytes[i + 1] : 0), (byte)((z > 1) ? bytes[i + 2] : 0), false);
                 i += z + 1;
             }
             else
             {
                 // Running status
-                var z = MidiEvent.FixedDataSize(actualEventType);
+                var z = MidiEvent.FixedDataSize(statusByte);
                 if (end < i + z)
                 {
-                    throw new Exception($"Received data was incomplete to build MIDI running status message for '{actualEventType:X}' status.");
+                    throw new Exception($"Received data was incomplete to build MIDI running status message for '{statusByte:X}' status.");
                 }
-                yield return new MyMidiEvent(actualEventType, actualEventType, bytes[i], (byte)((z > 1) ? bytes[i + 1] : 0), true);
+                yield return new MyMidiEvent(statusByte, bytes[i], (byte)((z > 1) ? bytes[i + 1] : 0), true);
                 i += z;
             }
         }
