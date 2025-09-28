@@ -26,7 +26,7 @@ public struct TimestampedMyMidiEvent
 
 public struct MyMidiEvent
 {
-    public bool isRunningStatus;
+    public bool isRunningStatus; // this means that the message came in WITHOUT a status byte, so it should use the last one that was received
     public byte actualEventType
     {
         get
@@ -35,7 +35,7 @@ public struct MyMidiEvent
             return (byte)(statusByte & 0xF0);
         }
     }
-    public byte statusByte;
+    public byte statusByte; // could be the running status byte if this is a running status message
     public byte dataByte1;
     public byte dataByte2;
     public byte channelIndex => (byte)(statusByte & 0x0F);
