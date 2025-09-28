@@ -230,15 +230,19 @@ public class MidiInputConnection
     {
         int i = index;
         int end = index + size;
+        //if (DEBUG) UniLog.Log("* In convert method");
         //byte statusByte = runningStatus;
         while (i < end)
         {
+            //if (DEBUG) UniLog.Log($"* i: {i}");
             if (bytes[i] >= 128)
             {
                 // New status byte
+                if (DEBUG) UniLog.Log($"* New running status byte: {bytes[i]:X02}");
                 runningStatus = bytes[i];
                 if (runningStatus == MidiEvent.SysEx1)
                 {
+                    //if (DEBUG) UniLog.Log($"* is SysEx");
                     // It should look for the EndSysEx value (247) in the rest of the bytes from this point
                     // but we don't expose SysEx in game right now anyway so it doesn't really matter right now
                     yield return new MyMidiEvent(bytes, index, size);
@@ -246,22 +250,27 @@ public class MidiInputConnection
                     continue;
                 }
                 var z = MidiEvent.FixedDataSize(runningStatus);
+                //if (DEBUG) UniLog.Log($"* Fixed data size: {z}");
                 if (end < i + z)
                 {
                     throw new Exception($"Received data was incomplete to build MIDI non-running status message for '{runningStatus:X}' status.");
                 }
-                yield return new MyMidiEvent(runningStatus, (byte)((z > 0) ? bytes[i + 1] : 0), (byte)((z > 1) ? bytes[i + 2] : 0));
+                var evt = new MyMidiEvent(runningStatus, (byte)((z > 0) ? bytes[i + 1] : 0), (byte)((z > 1) ? bytes[i + 2] : 0));
+                yield return evt;
                 i += z + 1;
             }
             else
             {
                 // Is using running status
+                if (DEBUG) UniLog.Log($"* Is running status: {runningStatus}");
                 var z = MidiEvent.FixedDataSize(runningStatus);
+                //if (DEBUG) UniLog.Log($"* Fixed data size: {z}");
                 if (end < i + z - 1)
                 {
                     throw new Exception($"Received data was incomplete to build MIDI running status message for '{runningStatus:X}' status.");
                 }
-                yield return new MyMidiEvent(runningStatus, bytes[i], (byte)((z > 1) ? bytes[i + 1] : 0));
+                var evt = new MyMidiEvent(runningStatus, bytes[i], (byte)((z > 1) ? bytes[i + 1] : 0));
+                yield return evt;
                 i += z;
             }
         }
@@ -287,7 +296,8 @@ public class MidiInputConnection
 
         var events = ConvertWithRunningStatus(args.Data, args.Start, args.Length);
 
-        if (DEBUG) UniLog.Log($"* Number of events: {events.Count()}");
+        // DO NOT CALL events.Count() IT BREAKS THE RUNNING STATUS ON LINUX
+        //if (DEBUG) UniLog.Log($"* Number of converted events: {events.Count()}");
 
         foreach (var e in events)
         {
