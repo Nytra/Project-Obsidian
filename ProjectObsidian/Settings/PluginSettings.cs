@@ -49,7 +49,7 @@ public class PluginSettings : SettingComponent<PluginSettings>
         _localeData.Messages.Add("Settings.PluginSettings", "Plugin Settings");
         _localeData.Messages.Add("Settings.PluginSettings.PluginLoaded", "Plugin Loaded");
         _localeData.Messages.Add("Settings.PluginSettings.TogglePluginLoaded", "Toggle loading the plugin for new sessions");
-        _localeData.Messages.Add("Settings.PluginSettings.RefreshLocale", "Refresh Locale");
+        _localeData.Messages.Add("Settings.PluginSettings.RefreshLocale", "(Debug) Refresh Locale");
 
         _localeData.Messages.Add("Settings.MIDI_Settings", "MIDI Settings");
         _localeData.Messages.Add("Settings.MIDI_Settings.RefreshDeviceLists", "Refresh Devices");
