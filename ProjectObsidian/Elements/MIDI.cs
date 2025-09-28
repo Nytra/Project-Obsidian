@@ -73,8 +73,6 @@ public class MidiInputConnection
 
     private long _lastEventBufferStartTime = 0;
 
-    //private byte runningStatus;
-
     private const bool DEBUG = true;
 
     public void Initialize()
@@ -185,9 +183,6 @@ public class MidiInputConnection
         {
             var str = e.ToString();
             if (DEBUG) UniLog.Log("* " + str);
-
-            // Msb is dataByte1
-            // Lsb is dataByte2
 
             bool shouldBuffer = false;
             switch (e.EventType)
