@@ -93,8 +93,6 @@ public class PluginSettings : SettingComponent<PluginSettings>
     [SyncMethod(typeof(Action), new string[] { })]
     public void TogglePluginLoaded()
     {
-        RunSynchronously(() => SettingsLocaleHelper.Update());
-
         UniLog.Log("Toggling plugin loaded");
 
         if (GetObsidianRegistry() is AssemblyTypeRegistry obsidianRegistry)
