@@ -98,7 +98,7 @@ public class MidiInputConnection
     private bool IsCCFineMessage()
     {
         if (_eventBuffer.Count < 2) return false;
-        if (ActualEventType(_eventBuffer[0].evt.StatusByte) == MidiEvent.CC && ActualEventType(_eventBuffer[1].evt.StatusByte) == MidiEvent.CC
+        if (_eventBuffer[0].evt.EventType == MidiEvent.CC && _eventBuffer[1].evt.EventType == MidiEvent.CC
             && _eventBuffer[0].evt.Msb == _eventBuffer[1].evt.Msb - 32)
         {
             return true;
@@ -136,7 +136,7 @@ public class MidiInputConnection
 
             var e = _eventBuffer[0];
             if (DEBUG) UniLog.Log(e.ToString());
-            switch (ActualEventType(_eventBuffer[0].evt.StatusByte))
+            switch (_eventBuffer[0].evt.EventType)
             {
                 case MidiEvent.CC:
                     if (DEBUG) UniLog.Log("CC");
@@ -181,15 +181,6 @@ public class MidiInputConnection
         if (DEBUG) UniLog.Log("Finished flushing message buffer from start time: " + batchStartTime.ToString());
     }
 
-    private static byte ActualEventType(byte b)
-    {
-        if (MidiEvent.FixedDataSize(b) == 0)
-        {
-            return b;
-        }
-        return (byte)(b & 0xF0);
-    }
-
     public async void OnMessageReceived(object sender, MidiReceivedEventArgs args)
     {
         if (DEBUG) UniLog.Log($"*** New midi message");
@@ -221,7 +212,7 @@ public class MidiInputConnection
             // Lsb is dataByte2
 
             bool shouldBuffer = false;
-            switch (ActualEventType(e.StatusByte))
+            switch (e.EventType)
             {
                 // System realtime
                 case MidiEvent.MidiClock:
