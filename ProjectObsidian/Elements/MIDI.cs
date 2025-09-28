@@ -149,28 +149,6 @@ public class MidiInputConnection
                     Listeners.ForEach(l => l.TriggerProgram(new MIDI_ProgramEventData(e.evt.Channel, e.evt.Msb)));
                     break;
 
-                // Unhandled events:
-
-                //SysEx events are probably not worth handling
-                case MidiEvent.SysEx1:
-                    if (DEBUG) UniLog.Log("UnhandledEvent: SysEx1");
-                    break;
-                case MidiEvent.SysEx2:
-                    // Same as EndSysEx
-                    if (DEBUG) UniLog.Log("UnhandledEvent: SysEx2");
-                    break;
-                case MidiEvent.MtcQuarterFrame:
-                    if (DEBUG) UniLog.Log("UnhandledEvent: MtcQuarterFrame");
-                    break;
-                case MidiEvent.SongPositionPointer:
-                    if (DEBUG) UniLog.Log("UnhandledEvent: SongPositionPointer");
-                    break;
-                case MidiEvent.SongSelect:
-                    if (DEBUG) UniLog.Log("UnhandledEvent: SongSelect");
-                    break;
-                case MidiEvent.TuneRequest:
-                    if (DEBUG) UniLog.Log("UnhandledEvent: TuneRequest");
-                    break;
                 default:
                     // This should never happen
                     if (DEBUG) UniLog.Log($"Unrecognized event type! {_eventBuffer[0].evt.EventType}");
@@ -272,6 +250,29 @@ public class MidiInputConnection
                     if (DEBUG) UniLog.Log("* PAf");
                     Listeners.ForEach(l => l.TriggerPolyphonicAftertouch(new MIDI_PolyphonicAftertouchEventData(e.Channel, e.Msb, e.Lsb)));
                     break;
+
+                // Unhandled events:
+
+                case MidiEvent.SysEx1:
+                    if (DEBUG) UniLog.Log("UnhandledEvent: SysEx1");
+                    break;
+                case MidiEvent.SysEx2:
+                    // AKA EndSysEx
+                    if (DEBUG) UniLog.Log("UnhandledEvent: SysEx2");
+                    break;
+                case MidiEvent.MtcQuarterFrame:
+                    if (DEBUG) UniLog.Log("UnhandledEvent: MtcQuarterFrame");
+                    break;
+                case MidiEvent.SongPositionPointer:
+                    if (DEBUG) UniLog.Log("UnhandledEvent: SongPositionPointer");
+                    break;
+                case MidiEvent.SongSelect:
+                    if (DEBUG) UniLog.Log("UnhandledEvent: SongSelect");
+                    break;
+                case MidiEvent.TuneRequest:
+                    if (DEBUG) UniLog.Log("UnhandledEvent: TuneRequest");
+                    break;
+
                 default:
                     shouldBuffer = true;
                     break;
