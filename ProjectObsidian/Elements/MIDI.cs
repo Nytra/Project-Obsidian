@@ -73,7 +73,7 @@ public class MidiInputConnection
 
     private long _lastEventBufferStartTime = 0;
 
-    private const bool DEBUG = true;
+    private const bool DEBUG = false;
 
     public void Initialize()
     {
