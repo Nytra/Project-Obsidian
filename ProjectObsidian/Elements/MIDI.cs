@@ -181,8 +181,11 @@ public class MidiInputConnection
 
         foreach (var e in events)
         {
-            var str = e.ToString();
-            if (DEBUG) UniLog.Log("* " + str);
+            if (DEBUG)
+            {
+                var str = e.ToString();
+                UniLog.Log("* " + str);
+            }
 
             bool shouldBuffer = false;
             switch (e.EventType)
