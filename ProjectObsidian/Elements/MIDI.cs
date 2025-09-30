@@ -159,13 +159,13 @@ public class MidiInputConnection
 
     public async void OnMessageReceived(object sender, MidiReceivedEventArgs args)
     {
+        if (DEBUG) UniLog.FlushEveryMessage = true;
+
         if (DEBUG) UniLog.Log($"*** New midi message");
         if (DEBUG) UniLog.Log($"* Received {args.Length} bytes");
         if (DEBUG) UniLog.Log($"* Start: {args.Start}");
 
         if (DEBUG) UniLog.Log($"* Raw bytes: {string.Join(",", args.Data.Skip(args.Start).Take(args.Length).Select(b => string.Format("{0:X}", b)))}");
-
-        UniLog.FlushEveryMessage = true;
 
         long timestamp = args.Timestamp;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) // Timestamp is always zero on Linux with the Alsa Midi API
