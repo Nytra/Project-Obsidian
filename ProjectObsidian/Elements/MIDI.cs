@@ -1,24 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Commons.Music.Midi;
-using Obsidian.Components.Devices.MIDI;
 using Elements.Core;
-using FrooxEngine;
 using Elements.Data;
 
 namespace Obsidian.Elements;
 
 public struct TimestampedMidiEvent
 {
-    public MidiEvent midiEvent;
+    public MidiEvent evt;
     public long timestamp;
-    public TimestampedMidiEvent(MidiEvent _midiEvent, long _timestamp)
+    public TimestampedMidiEvent(MidiEvent _evt, long _timestamp)
     {
-        midiEvent = _midiEvent;
+        evt = _evt;
         timestamp = _timestamp;
+    }
+    public override string ToString()
+    {
+        return $"{timestamp}, {evt}";
     }
 }
 
@@ -65,14 +67,11 @@ public class MidiInputConnection
 
     public List<IMidiInputListener> Listeners = new();
 
-    // I am using this like a Queue so it could possibly be turned into a Queue instead...
     private List<TimestampedMidiEvent> _eventBuffer = new();
 
-    private const long MESSAGE_BUFFER_TIME_MILLISECONDS = 3;
+    private const long BUFFER_TIME_MILLISECONDS = 3;
 
-    private long _lastMessageBufferStartTime = 0;
-
-    private int _bufferedMessagesToHandle = 0;
+    private long _lastEventBufferStartTime = 0;
 
     private const bool DEBUG = false;
 
@@ -80,8 +79,7 @@ public class MidiInputConnection
     {
         Input = null;
         _eventBuffer.Clear();
-        _lastMessageBufferStartTime = 0;
-        _bufferedMessagesToHandle = 0;
+        _lastEventBufferStartTime = 0;
         Listeners.Clear();
     }
 
@@ -97,11 +95,9 @@ public class MidiInputConnection
 
     private bool IsCCFineMessage()
     {
-        if (_eventBuffer.Count == 0) return false;
-        long timestamp = _eventBuffer[0].timestamp;
-        if (_eventBuffer.Count >= 2
-            && _eventBuffer[0].midiEvent.EventType == MidiEvent.CC && _eventBuffer[1].midiEvent.EventType == MidiEvent.CC
-            && _eventBuffer[0].midiEvent.Msb == _eventBuffer[1].midiEvent.Msb - 32)
+        if (_eventBuffer.Count < 2) return false;
+        if (_eventBuffer[0].evt.EventType == MidiEvent.CC && _eventBuffer[1].evt.EventType == MidiEvent.CC
+            && _eventBuffer[0].evt.Msb == _eventBuffer[1].evt.Msb - 32)
         {
             return true;
         }
@@ -121,44 +117,145 @@ public class MidiInputConnection
 
         while (_eventBuffer.Count > 0)
         {
-
+            // 14bit CC
             while (IsCCFineMessage())
             {
-                var e1 = _eventBuffer[0].midiEvent;
+                var e1 = _eventBuffer[0];
                 if (DEBUG) UniLog.Log(e1.ToString());
-                var e2 = _eventBuffer[1].midiEvent;
+                var e2 = _eventBuffer[1];
                 if (DEBUG) UniLog.Log(e2.ToString());
-                var finalValue = CombineBytes(e2.Lsb, e1.Lsb);
+                var finalValue = CombineBytes(e2.evt.Lsb, e1.evt.Lsb);
                 if (DEBUG) UniLog.Log($"CC fine. Value: " + finalValue.ToString());
-                Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e1.Channel, e1.Msb, finalValue, _coarse: false)));
+                Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e1.evt.Channel, e1.evt.Msb, finalValue, _coarse: false)));
                 _eventBuffer.RemoveRange(0, 2);
-                _bufferedMessagesToHandle -= 2;
             }
 
             if (_eventBuffer.Count == 0) break;
 
-            var e = _eventBuffer[0].midiEvent;
+            var e = _eventBuffer[0];
             if (DEBUG) UniLog.Log(e.ToString());
-            switch (e.EventType)
+            switch (_eventBuffer[0].evt.EventType)
             {
                 case MidiEvent.CC:
                     if (DEBUG) UniLog.Log("CC");
-                    Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e.Channel, e.Msb, e.Lsb, _coarse: true)));
+                    Listeners.ForEach(l => l.TriggerControl(new MIDI_CC_EventData(e.evt.Channel, e.evt.Msb, e.evt.Lsb, _coarse: true)));
                     break;
+
                 // Program events are buffered because they can be sent after a CC fine message for Bank Select, one of my devices sends consecutively: CC (Bank Select) -> CC (Bank Select Lsb) -> Program for some buttons
                 case MidiEvent.Program:
                     if (DEBUG) UniLog.Log("Program");
-                    Listeners.ForEach(l => l.TriggerProgram(new MIDI_ProgramEventData(e.Channel, e.Msb)));
+                    Listeners.ForEach(l => l.TriggerProgram(new MIDI_ProgramEventData(e.evt.Channel, e.evt.Msb)));
+                    break;
+
+                default:
+                    // This should never happen
+                    if (DEBUG) UniLog.Log($"Unrecognized event type! {_eventBuffer[0].evt.EventType}");
+                    break;
+            }
+            _eventBuffer.RemoveAt(0);
+        }
+        if (DEBUG) UniLog.Log("Finished flushing message buffer from start time: " + batchStartTime.ToString());
+    }
+
+    public async void OnMessageReceived(object sender, MidiReceivedEventArgs args)
+    {
+        if (DEBUG) UniLog.FlushEveryMessage = true;
+
+        if (DEBUG) UniLog.Log($"*** New midi message");
+        if (DEBUG) UniLog.Log($"* Received {args.Length} bytes");
+        if (DEBUG) UniLog.Log($"* Start: {args.Start}");
+
+        if (DEBUG) UniLog.Log($"* Raw bytes: {string.Join(",", args.Data.Skip(args.Start).Take(args.Length).Select(b => string.Format("{0:X}", b)))}");
+
+        long timestamp = args.Timestamp;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) // Timestamp is always zero on Linux with the Alsa Midi API
+        {
+            timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+        }
+
+        if (DEBUG) UniLog.Log($"* Timestamp: {timestamp}");
+
+        var events = MidiEvent.Convert(args.Data, args.Start, args.Length);
+
+        // DO NOT CALL events.Count() IT BREAKS THE RUNNING STATUS ON LINUX
+
+        foreach (var e in events)
+        {
+            if (DEBUG)
+            {
+                var str = e.ToString();
+                UniLog.Log("* " + str);
+            }
+
+            bool shouldBuffer = false;
+            switch (e.EventType)
+            {
+                // System realtime
+                case MidiEvent.MidiClock:
+                    if (DEBUG) UniLog.Log("* MidiClock");
+                    Listeners.ForEach(l => l.TriggerMidiClock(new MIDI_SystemRealtimeEventData()));
+                    break;
+                case MidiEvent.MidiTick:
+                    if (DEBUG) UniLog.Log("* MidiTick");
+                    Listeners.ForEach(l => l.TriggerMidiTick(new MIDI_SystemRealtimeEventData()));
+                    break;
+                case MidiEvent.MidiStart:
+                    if (DEBUG) UniLog.Log("* MidiStart");
+                    Listeners.ForEach(l => l.TriggerMidiStart(new MIDI_SystemRealtimeEventData()));
+                    break;
+                case MidiEvent.MidiStop:
+                    if (DEBUG) UniLog.Log("* MidiStop");
+                    Listeners.ForEach(l => l.TriggerMidiStop(new MIDI_SystemRealtimeEventData()));
+                    break;
+                case MidiEvent.MidiContinue:
+                    if (DEBUG) UniLog.Log("* MidiContinue");
+                    Listeners.ForEach(l => l.TriggerMidiContinue(new MIDI_SystemRealtimeEventData()));
+                    break;
+                case MidiEvent.ActiveSense:
+                    if (DEBUG) UniLog.Log("* ActiveSense");
+                    Listeners.ForEach(l => l.TriggerActiveSense(new MIDI_SystemRealtimeEventData()));
+                    break;
+                case MidiEvent.Reset:
+                    // Same as Meta
+                    if (DEBUG) UniLog.Log("* Reset");
+                    Listeners.ForEach(l => l.TriggerReset(new MIDI_SystemRealtimeEventData()));
+                    break;
+
+                // other types of messages: channel message (voice or channel mode), system common message, system exclusive message
+                case MidiEvent.NoteOn:
+                    if (DEBUG) UniLog.Log("* NoteOn");
+                    if (e.Lsb == 0)
+                    {
+                        if (DEBUG) UniLog.Log("* Zero velocity, so it's actually a NoteOff");
+                        Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.Channel, e.Msb, e.Lsb)));
+                        break;
+                    }
+                    Listeners.ForEach(l => l.TriggerNoteOn(new MIDI_NoteEventData(e.Channel, e.Msb, e.Lsb)));
+                    break;
+                case MidiEvent.NoteOff:
+                    if (DEBUG) UniLog.Log("* NoteOff");
+                    Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.Channel, e.Msb, e.Lsb)));
+                    break;
+                case MidiEvent.CAf:
+                    if (DEBUG) UniLog.Log("* CAf");
+                    Listeners.ForEach(l => l.TriggerChannelAftertouch(new MIDI_ChannelAftertouchEventData(e.Channel, e.Msb)));
+                    break;
+                case MidiEvent.Pitch:
+                    if (DEBUG) UniLog.Log("* Pitch");
+                    Listeners.ForEach(l => l.TriggerPitchWheel(new MIDI_PitchWheelEventData(e.Channel, CombineBytes(e.Msb, e.Lsb))));
+                    break;
+                case MidiEvent.PAf:
+                    if (DEBUG) UniLog.Log("* PAf");
+                    Listeners.ForEach(l => l.TriggerPolyphonicAftertouch(new MIDI_PolyphonicAftertouchEventData(e.Channel, e.Msb, e.Lsb)));
                     break;
 
                 // Unhandled events:
 
-                //SysEx events are probably not worth handling
                 case MidiEvent.SysEx1:
                     if (DEBUG) UniLog.Log("UnhandledEvent: SysEx1");
                     break;
                 case MidiEvent.SysEx2:
-                    // Same as EndSysEx
+                    // AKA EndSysEx
                     if (DEBUG) UniLog.Log("UnhandledEvent: SysEx2");
                     break;
                 case MidiEvent.MtcQuarterFrame:
@@ -173,123 +270,34 @@ public class MidiInputConnection
                 case MidiEvent.TuneRequest:
                     if (DEBUG) UniLog.Log("UnhandledEvent: TuneRequest");
                     break;
+
                 default:
+                    shouldBuffer = true;
                     break;
             }
-            _eventBuffer.RemoveAt(0);
-            _bufferedMessagesToHandle -= 1;
-        }
-        if (DEBUG) UniLog.Log("Finished flushing message buffer from start time: " + batchStartTime.ToString());
-        if (_bufferedMessagesToHandle != 0)
-        {
-            // Just in case some messages got lost somehow
-            UniLog.Warning("Did not handle all buffered messages! " + _bufferedMessagesToHandle.ToString());
-        }
-        _bufferedMessagesToHandle = 0;
-    }
 
-    public async void OnMessageReceived(object sender, MidiReceivedEventArgs args)
-    {
-        if (DEBUG) UniLog.Log($"*** New midi message");
-        if (DEBUG) UniLog.Log($"* Received {args.Length} bytes");
-        if (DEBUG) UniLog.Log($"* Timestamp: {args.Timestamp}");
-
-        var events = MidiEvent.Convert(args.Data, args.Start, args.Length);
-
-        if (args.Length == 1)
-        {
-            // system realtime message, do not buffer these, execute immediately
-            if (DEBUG) UniLog.Log($"* System realtime message");
-            foreach (var e in events)
+            if (shouldBuffer)
             {
-                var str = e.ToString();
-                if (DEBUG) UniLog.Log("* " + str);
-                switch (e.StatusByte)
+                // buffer CC messages because consecutive ones may need to be combined
+                // also buffer Program messages
+                lock (_eventBuffer)
                 {
-                    case MidiEvent.MidiClock:
-                        if (DEBUG) UniLog.Log("* MidiClock");
-                        Listeners.ForEach(l => l.TriggerMidiClock(new MIDI_SystemRealtimeEventData()));
-                        break;
-                    case MidiEvent.MidiTick:
-                        if (DEBUG) UniLog.Log("* MidiTick");
-                        Listeners.ForEach(l => l.TriggerMidiTick(new MIDI_SystemRealtimeEventData()));
-                        break;
-                    case MidiEvent.MidiStart:
-                        if (DEBUG) UniLog.Log("* MidiStart");
-                        Listeners.ForEach(l => l.TriggerMidiStart(new MIDI_SystemRealtimeEventData()));
-                        break;
-                    case MidiEvent.MidiStop:
-                        if (DEBUG) UniLog.Log("* MidiStop");
-                        Listeners.ForEach(l => l.TriggerMidiStop(new MIDI_SystemRealtimeEventData()));
-                        break;
-                    case MidiEvent.MidiContinue:
-                        if (DEBUG) UniLog.Log("* MidiContinue");
-                        Listeners.ForEach(l => l.TriggerMidiContinue(new MIDI_SystemRealtimeEventData()));
-                        break;
-                    case MidiEvent.ActiveSense:
-                        if (DEBUG) UniLog.Log("* ActiveSense");
-                        Listeners.ForEach(l => l.TriggerActiveSense(new MIDI_SystemRealtimeEventData()));
-                        break;
-                    case MidiEvent.Reset:
-                        // Same as Meta
-                        if (DEBUG) UniLog.Log("* Reset");
-                        Listeners.ForEach(l => l.TriggerReset(new MIDI_SystemRealtimeEventData()));
-                        break;
+                    _eventBuffer.Add(new TimestampedMidiEvent(e, timestamp));
                 }
             }
-            return;
         }
 
-        // other types of messages: channel message (voice or channel mode), system common message, system exclusive message
-        foreach (var e in events)
+        int count;
+        lock (_eventBuffer)
+            count = _eventBuffer.Count;
+
+        if (count > 0 && timestamp - _lastEventBufferStartTime > BUFFER_TIME_MILLISECONDS)
         {
-            var str = e.ToString();
-            if (DEBUG) UniLog.Log("* " + str);
-
-            switch (e.EventType)
-            {
-                case MidiEvent.NoteOn:
-                    if (DEBUG) UniLog.Log("* NoteOn");
-                    if (e.Lsb == 0)
-                    {
-                        if (DEBUG) UniLog.Log("* Zero velocity, so it's actually a NoteOff");
-                        Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.Channel, e.Msb, e.Lsb)));
-                        return;
-                    }
-                    Listeners.ForEach(l => l.TriggerNoteOn(new MIDI_NoteEventData(e.Channel, e.Msb, e.Lsb)));
-                    return;
-                case MidiEvent.NoteOff:
-                    if (DEBUG) UniLog.Log("* NoteOff");
-                    Listeners.ForEach(l => l.TriggerNoteOff(new MIDI_NoteEventData(e.Channel, e.Msb, e.Lsb)));
-                    return;
-                case MidiEvent.CAf:
-                    if (DEBUG) UniLog.Log("* CAf");
-                    Listeners.ForEach(l => l.TriggerChannelAftertouch(new MIDI_ChannelAftertouchEventData(e.Channel, e.Msb)));
-                    return;
-                case MidiEvent.Pitch:
-                    if (DEBUG) UniLog.Log("* Pitch");
-                    Listeners.ForEach(l => l.TriggerPitchWheel(new MIDI_PitchWheelEventData(e.Channel, CombineBytes(e.Msb, e.Lsb))));
-                    return;
-                case MidiEvent.PAf:
-                    if (DEBUG) UniLog.Log("* PAf");
-                    Listeners.ForEach(l => l.TriggerPolyphonicAftertouch(new MIDI_PolyphonicAftertouchEventData(e.Channel, e.Msb, e.Lsb)));
-                    return;
-                default:
-                    break;
-            }
-
-            // buffer CC messages because consecutive ones may need to be combined
-            // also buffer Program messages
-            _eventBuffer.Add(new TimestampedMidiEvent(e, args.Timestamp));
-            _bufferedMessagesToHandle += 1;
-        }
-
-        if (events.Count() > 0 && args.Timestamp - _lastMessageBufferStartTime > MESSAGE_BUFFER_TIME_MILLISECONDS)
-        {
-            _lastMessageBufferStartTime = args.Timestamp;
-            if (DEBUG) UniLog.Log("* New message batch created: " + args.Timestamp.ToString());
-            await Task.Delay((int)MESSAGE_BUFFER_TIME_MILLISECONDS);
-            FlushMessageBuffer();
+            _lastEventBufferStartTime = timestamp;
+            if (DEBUG) UniLog.Log("* New message batch created: " + timestamp.ToString());
+            await Task.Delay((int)BUFFER_TIME_MILLISECONDS);
+            lock (_eventBuffer)
+                FlushMessageBuffer();
         }
     }
 }

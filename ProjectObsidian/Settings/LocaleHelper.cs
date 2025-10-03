@@ -10,16 +10,20 @@ public static class SettingsLocaleHelper
     private static StaticLocaleProvider localeProvider;
     private static string lastOverrideLocale;
     private const string overrideLocaleString = "somethingRandomJustToMakeItChange";
-    public static void Update(LocaleData _localeData)
+    internal static LocaleData _lastLocaleData;
+    public static void Update(LocaleData _localeData=null)
     {
-        UpdateDelayed(_localeData);
-        Settings.RegisterValueChanges<LocaleSettings>(localeSettings => UpdateDelayed(_localeData));
+        var data = _localeData ?? _lastLocaleData;
+        if (data == null) return;
+        _lastLocaleData = data;
+        UpdateDelayed(data);
+        Settings.RegisterValueChanges<LocaleSettings>(localeSettings => UpdateDelayed(data));
         
     }
     private static void UpdateDelayed(LocaleData _localeData)
     {
-        // I hate having to do an arbitrary delay, but it doesn't work otherwise
-        Userspace.UserspaceWorld.RunInUpdates(7, () => UpdateIntern(_localeData));
+        // I hate having to do an arbitrary delay
+        Userspace.UserspaceWorld.RunInUpdates(15, () => UpdateIntern(_localeData));
     }
     private static void UpdateIntern(LocaleData _localeData)
     {
