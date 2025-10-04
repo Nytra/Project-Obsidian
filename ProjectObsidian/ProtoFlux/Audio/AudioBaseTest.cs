@@ -1,12 +1,9 @@
 ﻿using System;
-using ProtoFlux.Core;
-using ProtoFlux.Runtimes.Execution;
-using FrooxEngine.ProtoFlux;
-using FrooxEngine;
-using Elements.Assets;
-using Elements.Core;
-using System.Runtime.InteropServices;
 using Awwdio;
+using Elements.Assets;
+using FrooxEngine;
+using FrooxEngine.ProtoFlux;
+using ProtoFlux.Core;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
@@ -20,7 +17,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 
         public abstract void Read<S>(Span<S> buffer, AudioSimulator system) where S : unmanaged, IAudioSample<S>;
     }
-    [NodeCategory("Obsidian/Audio/Generators")]
+    [NodeCategory("Obsidian/Audio")]
     public abstract class AudioNodeBase<P> : ProxyVoidNode<FrooxEngineContext, P>, IExecutionChangeListener<FrooxEngineContext> where P : AudioNodeProxyBase, new()
     {
         public readonly ObjectOutput<IWorldAudioDataSource> AudioOutput;
