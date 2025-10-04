@@ -10,7 +10,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class SawtoothGeneratorProxy : AudioNodeProxyBase
+    public class SawtoothGeneratorProxy : AudioGeneratorNodeProxyBase
     {
         public float Frequency;
 
@@ -23,8 +23,6 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         private float[] tempBuffer = null;
 
         public override int ChannelCount => 1;
-
-        public override bool Active { get; set; }
 
         private bool updateTime;
 
@@ -75,7 +73,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Generators")]
-    public class SawtoothGenerator : AudioNodeBase<SawtoothGeneratorProxy>
+    public class SawtoothGenerator : AudioGeneratorNodeBase<SawtoothGeneratorProxy>
     {
         [ChangeListener]
         [DefaultValueAttribute(440f)]
