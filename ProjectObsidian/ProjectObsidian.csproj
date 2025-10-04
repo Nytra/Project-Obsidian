@@ -85,6 +85,7 @@
 	  <Reference Include="System.ValueTuple">
 	    <HintPath>$(ResonitePath)System.ValueTuple.dll</HintPath>
 	  </Reference>  
+		<Compile Include="$(ResonitePath)/ProjectObsidian_SourceGenFiles_SafeToDelete/*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProjectObsidian.SourceGenerators\ProjectObsidian.SourceGenerators\SourceGenerators.csproj" OutputItemType="Analyzer" />
@@ -92,7 +93,11 @@
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
   </ItemGroup>
+
+
+  
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ResonitePath)Libraries" />
+	<Exec Command="dotnet S:\Projects\Project Obsidian Dev RESONITE\Project-Obsidian\ProjectObsidian.SourceGenerators\ProjectObsidian.SourceGenerators\bin\Release\netstandard2.0SourceGenerators.dll $(ResonitePath)Libraries" />
   </Target>
 </Project>
