@@ -98,6 +98,5 @@
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ResonitePath)Libraries" />
-	<Exec Command="dotnet S:\Projects\Project Obsidian Dev RESONITE\Project-Obsidian\ProjectObsidian.SourceGenerators\ProjectObsidian.SourceGenerators\bin\Release\netstandard2.0SourceGenerators.dll $(ResonitePath)Libraries" />
   </Target>
 </Project>
