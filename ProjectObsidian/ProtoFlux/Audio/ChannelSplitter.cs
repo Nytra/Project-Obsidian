@@ -8,7 +8,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class ChannelSplitterProxy : AudioProcessorNode1ProxyBase
+    public class ChannelSplitterProxy : SingleInputAudioGeneratorNodeProxy
     {
         public int Channel;
 
@@ -66,7 +66,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio")]
-    public class ChannelSplitter : AudioProcessorNode1Base<ChannelSplitterProxy>
+    public class ChannelSplitter : SingleInputAudioGeneratorNode<ChannelSplitterProxy>
     {
         [ChangeListener]
         public readonly ValueInput<int> Channel;

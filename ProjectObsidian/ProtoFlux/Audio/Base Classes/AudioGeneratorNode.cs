@@ -7,7 +7,7 @@ using ProtoFlux.Core;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio;
 
-public abstract class AudioGeneratorNodeProxyBase : ProtoFluxEngineProxy, IWorldAudioDataSource
+public abstract class AudioGeneratorNodeProxy : ProtoFluxEngineProxy, IWorldAudioDataSource
 {
     public bool IsActive => Active;
 
@@ -19,7 +19,7 @@ public abstract class AudioGeneratorNodeProxyBase : ProtoFluxEngineProxy, IWorld
 }
 
 [NodeCategory("Obsidian/Audio")]
-public abstract class AudioGeneratorNodeBase<P> : ProxyVoidNode<FrooxEngineContext, P>, IExecutionChangeListener<FrooxEngineContext> where P : AudioGeneratorNodeProxyBase, new()
+public abstract class AudioGeneratorNode<P> : ProxyVoidNode<FrooxEngineContext, P>, IExecutionChangeListener<FrooxEngineContext> where P : AudioGeneratorNodeProxy, new()
 {
     public readonly ObjectOutput<IWorldAudioDataSource> AudioOutput;
 
@@ -104,7 +104,7 @@ public abstract class AudioGeneratorNodeBase<P> : ProxyVoidNode<FrooxEngineConte
         AudioOutput.Write(proxy, context);
     }
 
-    public AudioGeneratorNodeBase()
+    public AudioGeneratorNode()
     {
         AudioOutput = new ObjectOutput<IWorldAudioDataSource>(this);
     }

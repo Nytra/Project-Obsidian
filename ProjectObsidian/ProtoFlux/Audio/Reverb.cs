@@ -13,7 +13,7 @@ using Obsidian.Elements;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class ReverbProxy : AudioProcessorNode1ProxyBase
+    public class ReverbProxy : SingleInputAudioGeneratorNodeProxy
     {
         public ZitaParameters parameters;
 
@@ -77,7 +77,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Effects")]
-    public class Reverb : AudioProcessorNode1Base<ReverbProxy>
+    public class Reverb : SingleInputAudioGeneratorNode<ReverbProxy>
     {
         [ChangeListener]
         public readonly ValueInput<ZitaParameters> Parameters;

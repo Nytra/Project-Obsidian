@@ -12,7 +12,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class AudioDelayProxy : AudioProcessorNode1ProxyBase
+    public class AudioDelayProxy : SingleInputAudioGeneratorNodeProxy
     {
         public int delayMilliseconds;
 
@@ -60,7 +60,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
     }
     [NodeName("Delay")]
     [NodeCategory("Obsidian/Audio/Effects")]
-    public class AudioDelay : AudioProcessorNode1Base<AudioDelayProxy>
+    public class AudioDelay : SingleInputAudioGeneratorNode<AudioDelayProxy>
     {
         [ChangeListener]
         public readonly ValueInput<int> DelayMilliseconds;

@@ -9,7 +9,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class BandPassFilterProxy : AudioProcessorNode1ProxyBase
+    public class BandPassFilterProxy : SingleInputAudioGeneratorNodeProxy
     {
         public float LowFrequency;
 
@@ -43,7 +43,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Filters")]
-    public class BandPassFilter : AudioProcessorNode1Base<BandPassFilterProxy>
+    public class BandPassFilter : SingleInputAudioGeneratorNode<BandPassFilterProxy>
     {
         [ChangeListener]
         [DefaultValueAttribute(20f)]

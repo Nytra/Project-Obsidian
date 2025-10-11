@@ -8,7 +8,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class StereoCombinerProxy : AudioGeneratorNodeProxyBase
+    public class StereoCombinerProxy : AudioGeneratorNodeProxy
     {
         public IWorldAudioDataSource Left;
 
@@ -51,7 +51,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio")]
-    public class StereoCombiner : AudioGeneratorNodeBase<StereoCombinerProxy>
+    public class StereoCombiner : AudioGeneratorNode<StereoCombinerProxy>
     {
         [ChangeListener]
         public readonly ObjectInput<IWorldAudioDataSource> Left;

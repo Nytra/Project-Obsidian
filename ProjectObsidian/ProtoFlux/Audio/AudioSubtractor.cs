@@ -8,7 +8,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class AudioSubtractorProxy : AudioProcessorNode2ProxyBase
+    public class AudioSubtractorProxy : DualInputAudioGeneratorNodeProxy
     {
         public override int ChannelCount => AudioInput?.ChannelCount ?? AudioInput2?.ChannelCount ?? 0;
 
@@ -47,7 +47,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio")]
-    public class AudioSubtractor : AudioProcessorNode2Base<AudioSubtractorProxy>
+    public class AudioSubtractor : DualInputAudioGeneratorNode<AudioSubtractorProxy>
     {
     }
 }

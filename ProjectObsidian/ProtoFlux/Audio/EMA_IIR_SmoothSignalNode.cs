@@ -9,7 +9,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class EMA_IIR_SmoothSignalProxy : AudioProcessorNode1ProxyBase
+    public class EMA_IIR_SmoothSignalProxy : SingleInputAudioGeneratorNodeProxy
     {
         public float SmoothingFactor;
 
@@ -29,7 +29,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Filters")]
-    public class EMA_IIR_SmoothSignal : AudioProcessorNode1Base<EMA_IIR_SmoothSignalProxy>
+    public class EMA_IIR_SmoothSignal : SingleInputAudioGeneratorNode<EMA_IIR_SmoothSignalProxy>
     {
         [ChangeListener]
         public readonly ValueInput<float> SmoothingFactor;

@@ -9,7 +9,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class ButterworthFilterProxy : AudioProcessorNode1ProxyBase
+    public class ButterworthFilterProxy : SingleInputAudioGeneratorNodeProxy
     {
         public bool LowPass;
 
@@ -43,7 +43,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Filters")]
-    public class ButterworthFilter : AudioProcessorNode1Base<ButterworthFilterProxy>
+    public class ButterworthFilter : SingleInputAudioGeneratorNode<ButterworthFilterProxy>
     {
         [ChangeListener]
         public readonly ValueInput<bool> LowPass;

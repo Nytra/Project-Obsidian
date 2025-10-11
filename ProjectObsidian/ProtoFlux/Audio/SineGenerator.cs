@@ -10,7 +10,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class SineGeneratorProxy : AudioGeneratorNodeProxyBase
+    public class SineGeneratorProxy : AudioGeneratorNodeProxy
     {
         public float Frequency;
 
@@ -71,7 +71,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Generators")]
-    public class SineGenerator : AudioGeneratorNodeBase<SineGeneratorProxy>
+    public class SineGenerator : AudioGeneratorNode<SineGeneratorProxy>
     {
         [ChangeListener]
         [DefaultValueAttribute(440f)]

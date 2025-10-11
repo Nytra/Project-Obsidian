@@ -13,7 +13,7 @@ using ProtoFlux.Runtimes.Execution;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class FIR_FilterProxy : AudioProcessorNode1ProxyBase
+    public class FIR_FilterProxy : SingleInputAudioGeneratorNodeProxy
     {
         public readonly SyncFieldList<float> Coefficients;
 
@@ -96,7 +96,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Filters")]
-    public class FIR_Filter : AudioProcessorNode1Base<FIR_FilterProxy>
+    public class FIR_Filter : SingleInputAudioGeneratorNode<FIR_FilterProxy>
     {
         public readonly ValueInput<int> CoefficientIndex;
 

@@ -11,7 +11,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class RingModulatorProxy : AudioProcessorNode2ProxyBase
+    public class RingModulatorProxy : DualInputAudioGeneratorNodeProxy
     {
         public float ModulationIndex;
 
@@ -36,7 +36,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Effects")]
-    public class RingModulator : AudioProcessorNode2Base<RingModulatorProxy>
+    public class RingModulator : DualInputAudioGeneratorNode<RingModulatorProxy>
     {
         [ChangeListener]
         public readonly ValueInput<float> ModulationIndex;
