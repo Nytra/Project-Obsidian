@@ -87,14 +87,11 @@
 	  </Reference>  
   </ItemGroup>
   <ItemGroup>
-	<ProjectReference Include="..\ProjectObsidian.SourceGenerators\ProjectObsidian.SourceGenerators\SourceGenerators.csproj" OutputItemType="Analyzer" />
+    <ProjectReference Include="..\ProjectObsidian.SourceGenerators\ProjectObsidian.SourceGenerators\SourceGenerators.csproj" OutputItemType="Analyzer" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3"> </PackageReference>
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
   </ItemGroup>
-
-
-  
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ResonitePath)Libraries" />
   </Target>
