@@ -114,6 +114,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
             {
                 return;
             }
+            base.Changed(context);
             proxy.LeftFront = LeftFront.Evaluate(context);
             proxy.RightFront = RightFront.Evaluate(context);
             proxy.Center = Center.Evaluate(context);
