@@ -9,7 +9,7 @@ using Awwdio;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public class BandPassFilterProxy : AudioProcessorNodeProxyBase
+    public class BandPassFilterProxy : AudioProcessorNode1ProxyBase
     {
         public float LowFrequency;
 
@@ -43,7 +43,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
         }
     }
     [NodeCategory("Obsidian/Audio/Filters")]
-    public class BandPassFilter : AudioProcessorNodeBase<BandPassFilterProxy>
+    public class BandPassFilter : AudioProcessorNode1Base<BandPassFilterProxy>
     {
         [ChangeListener]
         [DefaultValueAttribute(20f)]
@@ -59,12 +59,12 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 
         public override void Changed(FrooxEngineContext context)
         {
-            base.Changed(context);
             BandPassFilterProxy proxy = GetProxy(context);
             if (proxy == null)
             {
                 return;
             }
+            base.Changed(context);
             proxy.LowFrequency = LowFrequency.Evaluate(context, 20f);
             proxy.HighFrequency = HighFrequency.Evaluate(context, 20000f);
             proxy.Resonance = Resonance.Evaluate(context, 1.41f);

@@ -7,15 +7,15 @@ using ProtoFlux.Core;
 
 namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
 {
-    public abstract class AudioProcessorNodeProxyBase : AudioGeneratorNodeProxyBase
+    public abstract class AudioProcessorNode2ProxyBase : AudioProcessorNode1ProxyBase
     {
-        public IWorldAudioDataSource AudioInput;
+        public IWorldAudioDataSource AudioInput2;
     }
     [NodeCategory("Obsidian/Audio")]
-    public abstract class AudioProcessorNodeBase<P> : AudioGeneratorNodeBase<P> where P : AudioProcessorNodeProxyBase, new()
+    public abstract class AudioProcessorNode2Base<P> : AudioProcessorNode1Base<P> where P : AudioProcessorNode2ProxyBase, new()
     {
         [ChangeListener]
-        public readonly ObjectInput<IWorldAudioDataSource> AudioInput;
+        public readonly ObjectInput<IWorldAudioDataSource> AudioInput2;
 
         public override void Changed(FrooxEngineContext context)
         {
@@ -24,7 +24,8 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
             {
                 return;
             }
-            proxy.AudioInput = AudioInput.Evaluate(context);
+            base.Changed(context);
+            proxy.AudioInput2 = AudioInput2.Evaluate(context);
         }
     }
 }

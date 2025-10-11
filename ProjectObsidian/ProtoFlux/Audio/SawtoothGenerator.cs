@@ -99,6 +99,7 @@ namespace ProtoFlux.Runtimes.Execution.Nodes.Obsidian.Audio
             {
                 return;
             }
+            base.Changed(context);
             proxy.Amplitude = Amplitude.Evaluate(context, 1f);
             proxy.Phase = Phase.Evaluate(context, 0f);
             proxy.Frequency = Frequency.Evaluate(context, 440f);
