@@ -47,6 +47,8 @@ By backing us on Patreon, you're actively participating in the plugin's enhancem
 
 Upon doing this, start Resonite. Navigate to the Obsidian category in your dash settings and ensure the Plugin Loaded setting is True. For further details, refer to your logs.
 
+(Note: if you host sessions with this, others will not be able to connect unless they also have the plugin. Check the Obsidian dash settings for the toggle which lets you turn off the plugin so you can host vanilla sessions again.)
+
 For a comprehensive guide, please refer to our [installation wiki](https://github.com/Xlinka/Project-Obsidian/wiki/Installation).
 
 ## Features
@@ -84,6 +86,8 @@ https://github.com/ValveSoftware/steamvr_unity_plugin
 https://github.com/Nytra/managed-midi
 
 https://github.com/Nytra/alsa-sharp
+
+https://github.com/alsa-project/alsa-lib
 
 ## Additional info
 
