@@ -19,6 +19,8 @@ public class MeshEditTool : Tool
     protected readonly DestroyRelayRef<EditableMesh> _currentEditableMesh;
     protected readonly SyncRef<TextRenderer> _label;
 
+    public override bool UsesLaser => true;
+
     protected override void OnAttach()
     {
         base.OnAttach();
@@ -38,7 +40,7 @@ public class MeshEditTool : Tool
         coneMesh.Height.Value = 0.05f;
 
         Slot labelPivot = Slot.AddSlot("Label Pivot");
-        labelPivot.LocalRotation = floatQ.Euler(0f, 0f, 90f);
+        labelPivot.LocalRotation = floatQ.Euler(0f, 0f, 45f);
 
         Slot slot2 = labelPivot.AddSlot("Label");
         TextRenderer label = slot2.AttachComponent<TextRenderer>();
